@@ -53,7 +53,7 @@ This application replicates and enhances the functionality of traditional Excel-
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/re-financial-model.git
+git clone https://github.com/tooeysb/re-financial-model.git
 cd re-financial-model
 
 # Create virtual environment
@@ -118,7 +118,34 @@ GET  /api/scenarios        # List scenarios
 POST /api/scenarios        # Create scenario
 ```
 
+## Live Demo
+
+**Production App:** https://re-fin-model-225worth-3348ecdc48e8.herokuapp.com/
+
 ## Deployment (Heroku)
+
+The app is deployed to Heroku with the following configuration:
+
+- **App Name:** `re-fin-model-225worth`
+- **Region:** US
+- **Database:** Supabase PostgreSQL
+
+### Deploy Updates
+
+```bash
+# Push to both GitHub and Heroku
+git push origin main
+git push heroku main
+```
+
+### Environment Variables (Heroku)
+
+Required config vars (already set):
+- `DATABASE_URL` - Supabase PostgreSQL connection string
+- `SUPABASE_URL` - Supabase project URL
+- `SUPABASE_KEY` - Supabase anon key
+
+### Manual Deployment
 
 ```bash
 # Login to Heroku
