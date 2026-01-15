@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Model Editor - RE Financial Model{% endblock %}
+
+{% block content %}
+<div x-data="modelEditor()" class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                Financial Model Editor
+            </h1>
+            <p class="mt-1 text-sm text-gray-500">Model ID: {{ model_id }}</p>
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+            <button type="button"
+                    @click="calculateModel()"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                Calculate
+            </button>
+            <button type="button"
+                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                Save
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+            <button @click="activeTab = 'assumptions'"
+                    :class="activeTab === 'assumptions' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Assumptions
+            </button>
+            <button @click="activeTab = 'rentroll'"
+                    :class="activeTab === 'rentroll' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Rent Roll
+            </button>
+            <button @click="activeTab = 'financing'"
+                    :class="activeTab === 'financing' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Financing
+            </button>
+            <button @click="activeTab = 'cashflows'"
+                    :class="activeTab === 'cashflows' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Cash Flows
+            </button>
+            <button @click="activeTab = 'returns'"
+                    :class="activeTab === 'returns' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Returns
+            </button>
+        </nav>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="bg-white shadow rounded-lg p-6">
+        <!-- Assumptions Tab -->
+        <div x-show="activeTab === 'assumptions'" class="space-y-6">
+            <h2 class="text-lg font-medium text-gray-900">Property & Deal Assumptions</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Property Info -->
+                <div class="space-y-4">
+                    <h3 class="font-medium text-gray-700">Property Information</h3>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Property Name</label>
+                        <input type="text" x-model="assumptions.propertyName"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Net Rentable SF</label>
+                        <input type="number" x-model.number="assumptions.totalSF"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <!-- Acquisition -->
+                <div class="space-y-4">
+                    <h3 class="font-medium text-gray-700">Acquisition</h3>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Purchase Price ($000s)</label>
+                        <input type="number" x-model.number="assumptions.purchasePrice"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Closing Costs ($000s)</label>
+                        <input type="number" x-model.number="assumptions.closingCosts"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Hold Period (months)</label>
+                        <input type="number" x-model.number="assumptions.holdPeriodMonths"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <!-- Revenue -->
+                <div class="space-y-4">
+                    <h3 class="font-medium text-gray-700">Revenue Assumptions</h3>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">In-Place Rent ($/SF/yr)</label>
+                        <input type="number" x-model.number="assumptions.inPlaceRentPSF"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Market Rent ($/SF/yr)</label>
+                        <input type="number" x-model.number="assumptions.marketRentPSF"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Rent Growth (%/yr)</label>
+                        <input type="number" x-model.number="assumptions.rentGrowth" step="0.001"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <!-- Expenses -->
+                <div class="space-y-4">
+                    <h3 class="font-medium text-gray-700">Expense Assumptions</h3>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Operating Expenses ($/SF/yr)</label>
+                        <input type="number" x-model.number="assumptions.fixedOpexPSF"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Management Fee (%)</label>
+                        <input type="number" x-model.number="assumptions.managementFeePercent" step="0.01"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">CapEx Reserve ($/SF/yr)</label>
+                        <input type="number" x-model.number="assumptions.capexReservePSF"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <!-- Exit -->
+                <div class="space-y-4">
+                    <h3 class="font-medium text-gray-700">Exit Assumptions</h3>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Exit Cap Rate (%)</label>
+                        <input type="number" x-model.number="assumptions.exitCapRate" step="0.001"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Sales Cost (%)</label>
+                        <input type="number" x-model.number="assumptions.salesCostPercent" step="0.001"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Returns Tab -->
+        <div x-show="activeTab === 'returns'" class="space-y-6">
+            <h2 class="text-lg font-medium text-gray-900">Return Metrics</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <dt class="text-sm font-medium text-blue-600">Unleveraged IRR</dt>
+                    <dd class="mt-1 text-2xl font-semibold text-blue-900" x-text="formatPercent(metrics.unleveragedIRR)">-</dd>
+                </div>
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <dt class="text-sm font-medium text-blue-600">Unleveraged Multiple</dt>
+                    <dd class="mt-1 text-2xl font-semibold text-blue-900" x-text="formatMultiple(metrics.unleveragedMultiple)">-</dd>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4">
+                    <dt class="text-sm font-medium text-green-600">Leveraged IRR</dt>
+                    <dd class="mt-1 text-2xl font-semibold text-green-900" x-text="formatPercent(metrics.leveragedIRR)">-</dd>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4">
+                    <dt class="text-sm font-medium text-green-600">Leveraged Multiple</dt>
+                    <dd class="mt-1 text-2xl font-semibold text-green-900" x-text="formatMultiple(metrics.leveragedMultiple)">-</dd>
+                </div>
+            </div>
+        </div>
+
+        <!-- Other tabs - placeholders -->
+        <div x-show="activeTab === 'rentroll'" class="text-gray-500 text-center py-8">
+            Rent Roll editor coming soon...
+        </div>
+        <div x-show="activeTab === 'financing'" class="text-gray-500 text-center py-8">
+            Financing module coming soon...
+        </div>
+        <div x-show="activeTab === 'cashflows'" class="text-gray-500 text-center py-8">
+            Cash Flow projections coming soon...
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function modelEditor() {
+    return {
+        activeTab: 'assumptions',
+        assumptions: {
+            propertyName: '225 Worth Ave',
+            totalSF: 9932,
+            purchasePrice: 41500,
+            closingCosts: 500,
+            holdPeriodMonths: 120,
+            inPlaceRentPSF: 193,
+            marketRentPSF: 300,
+            rentGrowth: 0.025,
+            vacancyRate: 0,
+            fixedOpexPSF: 36,
+            managementFeePercent: 0.04,
+            propertyTaxAmount: 622,
+            capexReservePSF: 5,
+            expenseGrowth: 0.025,
+            exitCapRate: 0.05,
+            salesCostPercent: 0.01,
+            loanAmount: 23574,
+            interestRate: 0.05,
+            ioMonths: 120,
+            amortizationYears: 30
+        },
+        metrics: {
+            unleveragedIRR: null,
+            unleveragedMultiple: null,
+            unleveragedProfit: null,
+            leveragedIRR: null,
+            leveragedMultiple: null,
+            leveragedProfit: null
+        },
+
+        async calculateModel() {
+            try {
+                const response = await fetch('/api/calculate/cashflows', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        acquisition_date: '2026-03-31',
+                        hold_period_months: this.assumptions.holdPeriodMonths,
+                        purchase_price: this.assumptions.purchasePrice,
+                        closing_costs: this.assumptions.closingCosts,
+                        total_sf: this.assumptions.totalSF,
+                        in_place_rent_psf: this.assumptions.inPlaceRentPSF,
+                        market_rent_psf: this.assumptions.marketRentPSF,
+                        rent_growth: this.assumptions.rentGrowth,
+                        vacancy_rate: this.assumptions.vacancyRate,
+                        fixed_opex_psf: this.assumptions.fixedOpexPSF,
+                        management_fee_percent: this.assumptions.managementFeePercent,
+                        property_tax_amount: this.assumptions.propertyTaxAmount,
+                        capex_reserve_psf: this.assumptions.capexReservePSF,
+                        exit_cap_rate: this.assumptions.exitCapRate,
+                        sales_cost_percent: this.assumptions.salesCostPercent,
+                        loan_amount: this.assumptions.loanAmount,
+                        interest_rate: this.assumptions.interestRate,
+                        io_months: this.assumptions.ioMonths,
+                        amortization_years: this.assumptions.amortizationYears
+                    })
+                });
+
+                const data = await response.json();
+                this.metrics = {
+                    unleveragedIRR: data.metrics.unleveraged_irr,
+                    unleveragedMultiple: data.metrics.unleveraged_multiple,
+                    unleveragedProfit: data.metrics.unleveraged_profit,
+                    leveragedIRR: data.metrics.leveraged_irr,
+                    leveragedMultiple: data.metrics.leveraged_multiple,
+                    leveragedProfit: data.metrics.leveraged_profit
+                };
+                this.activeTab = 'returns';
+            } catch (error) {
+                console.error('Calculation error:', error);
+                alert('Error calculating model');
+            }
+        },
+
+        formatPercent(value) {
+            if (value === null || value === undefined) return '-';
+            return (value * 100).toFixed(2) + '%';
+        },
+
+        formatMultiple(value) {
+            if (value === null || value === undefined) return '-';
+            return value.toFixed(2) + 'x';
+        }
+    };
+}
+</script>
+{% endblock %}

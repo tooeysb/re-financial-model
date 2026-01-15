@@ -1,0 +1,10 @@
+{
+  "name": "re-financial-model",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real estate financial modeling web application",
+  "scripts": {
+    "dev": "uvicorn app.main:app --reload",
+    "start": "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+  }
+}

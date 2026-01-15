@@ -1,0 +1,50 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+
+# Node (for any tooling)
+node_modules/
+
+# Source Excel files (keep out of repo)
+*.xlsx
+*.xls
+
+# Alembic
+migrations/versions/*.pyc
