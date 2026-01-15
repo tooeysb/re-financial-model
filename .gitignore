@@ -48,3 +48,5 @@ node_modules/
 
 # Alembic
 migrations/versions/*.pyc
+.env.development
+.env.production

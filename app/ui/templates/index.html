@@ -3,7 +3,7 @@
 {% block title %}Dashboard - {{ title }}{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div x-data="dashboard()" x-init="init()" class="space-y-6">
     <!-- Header -->
     <div class="md:flex md:items-center md:justify-between">
         <div class="flex-1 min-w-0">
@@ -12,7 +12,7 @@
             </h1>
         </div>
         <div class="mt-4 flex md:mt-0 md:ml-4">
-            <a href="/new"
+            <a href="/model/new"
                class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 New Model
             </a>
@@ -32,7 +32,7 @@
                     <div class="ml-5 w-0 flex-1">
                         <dl>
                             <dt class="text-sm font-medium text-gray-500 truncate">Total Properties</dt>
-                            <dd class="text-lg font-medium text-gray-900">0</dd>
+                            <dd class="text-lg font-medium text-gray-900" x-text="properties.length">0</dd>
                         </dl>
                     </div>
                 </div>
@@ -50,7 +50,7 @@
                     <div class="ml-5 w-0 flex-1">
                         <dl>
                             <dt class="text-sm font-medium text-gray-500 truncate">Active Scenarios</dt>
-                            <dd class="text-lg font-medium text-gray-900">0</dd>
+                            <dd class="text-lg font-medium text-gray-900" x-text="scenarios.length">0</dd>
                         </dl>
                     </div>
                 </div>
@@ -58,14 +58,76 @@
         </div>
     </div>
 
-    <!-- Recent Models -->
-    <div class="bg-white shadow rounded-lg">
+    <!-- Loading State -->
+    <div x-show="loading" class="text-center py-8">
+        <svg class="animate-spin h-8 w-8 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p class="mt-2 text-gray-500">Loading...</p>
+    </div>
+
+    <!-- Properties List -->
+    <div x-show="!loading && properties.length > 0" class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Models</h3>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Properties</h3>
+        </div>
+        <ul class="divide-y divide-gray-200">
+            <template x-for="prop in properties" :key="prop.id">
+                <li class="px-4 py-4 sm:px-6 hover:bg-gray-50">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center">
+                                <p class="text-sm font-medium text-blue-600 truncate" x-text="prop.name"></p>
+                                <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600" x-text="prop.property_type || 'retail'"></span>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                <span x-show="prop.address_city" x-text="prop.address_city + ', ' + (prop.address_state || '')"></span>
+                                <span x-show="prop.net_rentable_sf"> · <span x-text="prop.net_rentable_sf?.toLocaleString()"></span> SF</span>
+                            </p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <a :href="'/model/new?property_id=' + prop.id"
+                               class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                + New Scenario
+                            </a>
+                        </div>
+                    </div>
+                    <!-- Scenarios for this property -->
+                    <div x-show="getPropertyScenarios(prop.id).length > 0" class="mt-3 ml-4">
+                        <p class="text-xs font-medium text-gray-500 uppercase mb-2">Scenarios</p>
+                        <div class="space-y-2">
+                            <template x-for="scenario in getPropertyScenarios(prop.id)" :key="scenario.id">
+                                <a :href="'/model/' + scenario.id"
+                                   class="block px-3 py-2 bg-gray-50 rounded-md hover:bg-gray-100 transition">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-medium text-gray-900" x-text="scenario.name"></span>
+                                        <div class="flex items-center space-x-4 text-xs text-gray-500">
+                                            <span x-show="scenario.return_metrics?.unleveraged_irr">
+                                                Unlev IRR: <span class="font-medium text-blue-600" x-text="formatPercent(scenario.return_metrics?.unleveraged_irr)"></span>
+                                            </span>
+                                            <span x-show="scenario.return_metrics?.leveraged_irr">
+                                                Lev IRR: <span class="font-medium text-green-600" x-text="formatPercent(scenario.return_metrics?.leveraged_irr)"></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </a>
+                            </template>
+                        </div>
+                    </div>
+                </li>
+            </template>
+        </ul>
+    </div>
+
+    <!-- Empty State -->
+    <div x-show="!loading && properties.length === 0" class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Properties</h3>
         </div>
         <div class="px-4 py-5 sm:p-6">
             <p class="text-gray-500 text-center py-8">
-                No models yet. Create your first financial model to get started.
+                No properties yet. Click "New Model" to create your first financial model.
             </p>
         </div>
     </div>
@@ -85,4 +147,57 @@
         </ul>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function dashboard() {
+    return {
+        properties: [],
+        scenarios: [],
+        loading: true,
+
+        async init() {
+            await Promise.all([
+                this.loadProperties(),
+                this.loadScenarios(),
+            ]);
+            this.loading = false;
+        },
+
+        async loadProperties() {
+            try {
+                const response = await fetch('/api/properties');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.properties = data.properties || [];
+                }
+            } catch (error) {
+                console.error('Error loading properties:', error);
+            }
+        },
+
+        async loadScenarios() {
+            try {
+                const response = await fetch('/api/scenarios');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.scenarios = data.scenarios || [];
+                }
+            } catch (error) {
+                console.error('Error loading scenarios:', error);
+            }
+        },
+
+        getPropertyScenarios(propertyId) {
+            return this.scenarios.filter(s => s.property_id === propertyId);
+        },
+
+        formatPercent(value) {
+            if (value === null || value === undefined) return '-';
+            return (value * 100).toFixed(2) + '%';
+        },
+    };
+}
+</script>
 {% endblock %}

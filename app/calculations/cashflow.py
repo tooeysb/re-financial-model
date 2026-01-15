@@ -85,7 +85,7 @@ def generate_cash_flows(
 
         fixed_opex = (total_sf * fixed_opex_psf * expense_escalation) / 12 / 1000
         mgmt_fee = effective_revenue * management_fee_percent
-        prop_tax = (property_tax_amount * expense_escalation) / 12 / 1000
+        prop_tax = (property_tax_amount * expense_escalation) / 12 / 1000  # Convert to $000s
         capex = (total_sf * capex_reserve_psf * expense_escalation) / 12 / 1000
 
         total_expenses = fixed_opex + mgmt_fee + prop_tax + capex
@@ -116,14 +116,14 @@ def generate_cash_flows(
             monthly_rate = interest_rate / 12
 
             if period <= io_months:
-                # Interest-only
-                interest_expense = loan_amount * monthly_rate / 1000
+                # Interest-only (loan_amount already in $000s)
+                interest_expense = loan_amount * monthly_rate
                 debt_service = interest_expense
             else:
-                # Amortizing
+                # Amortizing (loan_amount already in $000s)
                 amort_months = amortization_years * 12
-                payment = calculate_payment(loan_amount, interest_rate, amort_months) / 1000
-                interest_expense = loan_amount * monthly_rate / 1000  # Simplified
+                payment = calculate_payment(loan_amount, interest_rate, amort_months)
+                interest_expense = loan_amount * monthly_rate
                 principal_payment = payment - interest_expense
                 debt_service = payment
 
@@ -131,14 +131,14 @@ def generate_cash_flows(
         unleveraged_cf = noi - acquisition_costs + exit_proceeds
         leveraged_cf = unleveraged_cf - debt_service
 
-        # First period: add loan proceeds if applicable
+        # First period: add loan proceeds if applicable (loan_amount already in $000s)
         if period == 0 and loan_amount and loan_amount > 0:
-            leveraged_cf += loan_amount / 1000  # Loan proceeds offset acquisition
+            leveraged_cf += loan_amount  # Loan proceeds offset acquisition
 
-        # Exit period: pay off loan balance
+        # Exit period: pay off loan balance (loan_amount already in $000s)
         if period == hold_period_months and loan_amount and loan_amount > 0:
             # Simplified: assume full balance outstanding at exit
-            loan_payoff = loan_amount / 1000
+            loan_payoff = loan_amount
             leveraged_cf -= loan_payoff
 
         cash_flows.append(

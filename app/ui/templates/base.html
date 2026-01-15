@@ -17,11 +17,15 @@
     <!-- Custom styles -->
     <link rel="stylesheet" href="/static/css/styles.css">
 
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+
     {% block head %}{% endblock %}
 </head>
 <body class="bg-gray-100 min-h-screen">
     <!-- Navigation -->
-    <nav class="bg-white shadow-sm border-b">
+    <nav class="bg-white shadow-sm border-b" x-data="userMenu()">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex">
@@ -41,6 +45,42 @@
                         </a>
                     </div>
                 </div>
+                <!-- User Menu -->
+                <div class="flex items-center">
+                    <!-- Logged out state -->
+                    <template x-if="!user">
+                        <a href="/auth/login" class="text-sm text-gray-500 hover:text-gray-700">
+                            Sign In
+                        </a>
+                    </template>
+                    <!-- Logged in state -->
+                    <template x-if="user">
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open"
+                                    class="flex items-center space-x-2 text-sm text-gray-500 hover:text-gray-700 focus:outline-none">
+                                <span x-text="user.first_name || user.email"></span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div x-show="open" @click.away="open = false" x-cloak
+                                 class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 z-50">
+                                <div class="px-4 py-2 text-xs text-gray-500 border-b">
+                                    <span x-text="user.email"></span>
+                                    <span x-show="user.role === 'admin'" class="ml-1 px-1 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">Admin</span>
+                                </div>
+                                <a x-show="user.role === 'admin'" href="/admin/users"
+                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    Manage Users
+                                </a>
+                                <button @click="logout()"
+                                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    Sign Out
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
             </div>
         </div>
     </nav>
@@ -58,6 +98,37 @@
             </p>
         </div>
     </footer>
+
+    <!-- User menu script -->
+    <script>
+    function userMenu() {
+        return {
+            user: null,
+            init() {
+                this.checkAuth();
+            },
+            async checkAuth() {
+                try {
+                    const response = await fetch('/api/auth/me');
+                    if (response.ok) {
+                        this.user = await response.json();
+                    }
+                } catch (e) {
+                    // Not authenticated
+                    this.user = null;
+                }
+            },
+            async logout() {
+                try {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                } catch (e) {
+                    // Ignore errors
+                }
+                window.location.href = '/auth/login';
+            }
+        }
+    }
+    </script>
 
     {% block scripts %}{% endblock %}
 </body>
