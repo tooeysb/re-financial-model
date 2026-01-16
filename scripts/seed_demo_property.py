@@ -41,13 +41,32 @@ def main():
             building_sf=9932,
             net_rentable_sf=9932,
             purchase_price=41500000,
-            notes="High-end retail property on Worth Avenue, Palm Beach. Tenants include Peter Millar/G-Fore, J. McLaughlin, and Gucci.",
         )
         db.add(property)
         db.flush()
         print(f"Created property: {property.name} (ID: {property.id})")
 
-        # Create base case scenario
+        # Create base case scenario with operating assumptions in JSON
+        operating_assumptions = {
+            # Revenue assumptions
+            "total_sf": 9932,
+            "in_place_rent_psf": 200.0,  # High-end Palm Beach retail
+            "market_rent_psf": 220.0,
+            "vacancy_rate": 0.05,
+            "rent_growth": 0.025,
+            # Expense assumptions
+            "fixed_opex_psf": 36.0,
+            "management_fee_percent": 0.04,
+            "property_tax_amount": 415000,  # ~1% of value
+            "capex_reserve_psf": 5.0,
+            "expense_growth": 0.025,
+            # Financing (optional - for leveraged scenario)
+            "loan_amount": 27000000,  # ~65% LTV
+            "interest_rate": 0.055,
+            "io_months": 36,
+            "amortization_years": 30,
+        }
+
         scenario = Scenario(
             property_id=property.id,
             name="Base Case",
@@ -56,30 +75,9 @@ def main():
             hold_period_months=120,  # 10 years
             purchase_price=41500000,
             closing_costs=622500,  # 1.5% of purchase price
-
-            # Revenue assumptions
-            total_sf=9932,
-            in_place_rent_psf=200.0,  # High-end Palm Beach retail
-            market_rent_psf=220.0,
-            vacancy_rate=0.05,
-            rent_growth=0.025,
-
-            # Expense assumptions
-            fixed_opex_psf=36.0,
-            management_fee_percent=0.04,
-            property_tax_amount=415000,  # ~1% of value
-            capex_reserve_psf=5.0,
-            expense_growth=0.025,
-
-            # Exit assumptions
             exit_cap_rate=0.05,
             sales_cost_percent=0.02,
-
-            # Financing (optional - for leveraged scenario)
-            loan_amount=27000000,  # ~65% LTV
-            interest_rate=0.055,
-            io_months=36,
-            amortization_years=30,
+            operating_assumptions=operating_assumptions,
         )
         db.add(scenario)
         db.flush()
