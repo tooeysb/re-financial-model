@@ -546,6 +546,13 @@
                 </p>
             </div>
             <div class="flex gap-3">
+                <button @click="showAnalysisModal = true" class="flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all"
+                        :class="dealAnalysis.hasCriticalIssues ? 'bg-red-100 text-red-700 hover:bg-red-200' : dealAnalysis.hasIssues ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    <span x-text="dealAnalysis.hasCriticalIssues ? 'Issues Found' : dealAnalysis.hasIssues ? 'Warnings' : 'Analyze Deal'"></span>
+                </button>
                 <button @click="calculateModel()" :disabled="loading" class="btn-secondary-gradient flex items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
@@ -1468,6 +1475,156 @@
 
         </div>
     </div>
+
+    <!-- Deal Analysis Modal -->
+    <div x-show="showAnalysisModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" @keydown.escape.window="showAnalysisModal = false">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+            <div class="fixed inset-0 bg-slate-900/50 transition-opacity" @click="showAnalysisModal = false"></div>
+
+            <div class="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-auto overflow-hidden transform transition-all">
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between"
+                     :class="dealAnalysis.hasCriticalIssues ? 'bg-red-50' : dealAnalysis.hasIssues ? 'bg-amber-50' : 'bg-emerald-50'">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center"
+                             :class="dealAnalysis.hasCriticalIssues ? 'bg-red-100' : dealAnalysis.hasIssues ? 'bg-amber-100' : 'bg-emerald-100'">
+                            <svg class="w-6 h-6" :class="dealAnalysis.hasCriticalIssues ? 'text-red-600' : dealAnalysis.hasIssues ? 'text-amber-600' : 'text-emerald-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold" :class="dealAnalysis.hasCriticalIssues ? 'text-red-900' : dealAnalysis.hasIssues ? 'text-amber-900' : 'text-emerald-900'">Deal Analysis</h3>
+                            <p class="text-sm" :class="dealAnalysis.hasCriticalIssues ? 'text-red-700' : dealAnalysis.hasIssues ? 'text-amber-700' : 'text-emerald-700'" x-text="dealAnalysis.hasCriticalIssues ? 'Critical issues require attention' : dealAnalysis.hasIssues ? 'Some items may need review' : 'Deal structure looks viable'"></p>
+                        </div>
+                    </div>
+                    <button @click="showAnalysisModal = false" class="p-2 rounded-lg hover:bg-white/50 transition-colors">
+                        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-6 max-h-[70vh] overflow-y-auto">
+                    <!-- Key Metrics Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-slate-50 rounded-xl p-4 text-center">
+                            <p class="text-xs text-slate-500 uppercase font-medium mb-1">Monthly NOI</p>
+                            <p class="text-xl font-bold text-slate-900">$<span x-text="Math.round(dealAnalysis.monthlyNOI).toLocaleString()"></span></p>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-4 text-center">
+                            <p class="text-xs text-slate-500 uppercase font-medium mb-1">Monthly Debt Service</p>
+                            <p class="text-xl font-bold text-slate-900">$<span x-text="Math.round(dealAnalysis.monthlyDebtService).toLocaleString()"></span></p>
+                        </div>
+                        <div class="rounded-xl p-4 text-center" :class="dealAnalysis.dscr < 1 ? 'bg-red-50' : dealAnalysis.dscr < 1.25 ? 'bg-amber-50' : 'bg-emerald-50'">
+                            <p class="text-xs uppercase font-medium mb-1" :class="dealAnalysis.dscr < 1 ? 'text-red-600' : dealAnalysis.dscr < 1.25 ? 'text-amber-600' : 'text-emerald-600'">DSCR</p>
+                            <p class="text-xl font-bold" :class="dealAnalysis.dscr < 1 ? 'text-red-700' : dealAnalysis.dscr < 1.25 ? 'text-amber-700' : 'text-emerald-700'" x-text="dealAnalysis.dscr > 100 ? 'N/A' : dealAnalysis.dscr.toFixed(2) + 'x'"></p>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-4 text-center">
+                            <p class="text-xs text-slate-500 uppercase font-medium mb-1">LTC Ratio</p>
+                            <p class="text-xl font-bold text-slate-900" x-text="(dealAnalysis.ltc * 100).toFixed(1) + '%'"></p>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Metrics Table -->
+                    <div class="bg-slate-50 rounded-xl p-4 mb-6">
+                        <h4 class="font-semibold text-slate-700 mb-3">Deal Economics</h4>
+                        <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                            <div class="flex justify-between py-1 border-b border-slate-200">
+                                <span class="text-slate-600">Annual NOI</span>
+                                <span class="font-medium text-slate-900">$<span x-text="Math.round(dealAnalysis.annualNOI).toLocaleString()"></span></span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-slate-200">
+                                <span class="text-slate-600">Going-In Cap Rate</span>
+                                <span class="font-medium text-slate-900" x-text="(dealAnalysis.goingInCap * 100).toFixed(2) + '%'"></span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-slate-200">
+                                <span class="text-slate-600">Total Debt</span>
+                                <span class="font-medium text-slate-900">$<span x-text="Math.round(dealAnalysis.totalDebt).toLocaleString()"></span></span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-slate-200">
+                                <span class="text-slate-600">Exit Cap Rate</span>
+                                <span class="font-medium text-slate-900" x-text="(dealAnalysis.exitCap * 100).toFixed(2) + '%'"></span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-slate-200">
+                                <span class="text-slate-600">Total Equity</span>
+                                <span class="font-medium text-slate-900">$<span x-text="Math.round(dealAnalysis.totalEquity).toLocaleString()"></span></span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-slate-200">
+                                <span class="text-slate-600">Exit Value</span>
+                                <span class="font-medium text-slate-900">$<span x-text="Math.round(dealAnalysis.netExitProceeds).toLocaleString()"></span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Issues Section -->
+                    <template x-if="dealAnalysis.hasIssues">
+                        <div class="space-y-3">
+                            <h4 class="font-semibold text-slate-700">Issues & Recommendations</h4>
+                            <template x-for="issue in dealAnalysis.issues" :key="issue.title">
+                                <div class="rounded-xl p-4 border"
+                                     :class="issue.severity === 'critical' ? 'bg-red-50 border-red-200' : issue.severity === 'warning' ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'">
+                                    <div class="flex items-start gap-3">
+                                        <div class="flex-shrink-0 mt-0.5">
+                                            <svg x-show="issue.severity === 'critical'" class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                            </svg>
+                                            <svg x-show="issue.severity === 'warning'" class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                            <svg x-show="issue.severity === 'info'" class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="font-semibold" :class="issue.severity === 'critical' ? 'text-red-800' : issue.severity === 'warning' ? 'text-amber-800' : 'text-blue-800'" x-text="issue.title"></p>
+                                            <p class="text-sm mt-1" :class="issue.severity === 'critical' ? 'text-red-700' : issue.severity === 'warning' ? 'text-amber-700' : 'text-blue-700'" x-text="issue.description"></p>
+                                            <p class="text-sm mt-2 font-medium" :class="issue.severity === 'critical' ? 'text-red-800' : issue.severity === 'warning' ? 'text-amber-800' : 'text-blue-800'">
+                                                <span class="opacity-75">Suggestion:</span> <span x-text="issue.suggestion"></span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- No Issues Message -->
+                    <template x-if="!dealAnalysis.hasIssues">
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <div>
+                                    <p class="font-semibold text-emerald-800">Deal Structure Looks Good</p>
+                                    <p class="text-sm text-emerald-700">No critical issues detected. DSCR and exit assumptions appear reasonable.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Note about calculation errors -->
+                    <template x-if="metrics._errors && metrics._errors.length > 0">
+                        <div class="mt-4 bg-slate-100 rounded-xl p-4">
+                            <p class="text-sm text-slate-600">
+                                <span class="font-medium">Note:</span> The calculation errors above (e.g., "Cash flows must contain both positive and negative values")
+                                typically occur when leveraged cash flows are all negative - meaning debt service exceeds income every period
+                                and the exit value doesn't cover the loan payoff. Fix the issues above to resolve these errors.
+                            </p>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+                    <button @click="showAnalysisModal = false" class="px-4 py-2 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-colors">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -1481,6 +1638,7 @@ function modelEditor() {
         error: null,
         successMessage: null,
         showPropertyModal: false,
+        showAnalysisModal: false,
 
         tabs: [
             { id: 'assumptions', name: 'Assumptions' },
@@ -1531,6 +1689,114 @@ function modelEditor() {
             let totalDebt = 0;
             for (const loan of this.loans) { totalDebt += loan.amount || (loan.ltc_ratio ? totalCost * loan.ltc_ratio : 0); }
             return { totalCost, totalDebt, totalEquity: totalCost - totalDebt, ltc: totalCost > 0 ? totalDebt / totalCost : 0 };
+        },
+
+        get dealAnalysis() {
+            // Calculate key deal metrics for analysis
+            const totalCost = (this.scenario.purchase_price || 0) + (this.scenario.closing_costs || 0);
+            const totalSF = this.leases.reduce((sum, l) => sum + (l.rsf || 0), 0) || this.assumptions.total_sf || 10000;
+            const vacancy = this.assumptions.vacancy_rate || 0;
+
+            // Calculate annual rent from leases or assumptions
+            let annualRent = 0;
+            if (this.leases.length > 0) {
+                annualRent = this.leases.reduce((sum, l) => sum + ((l.rsf || 0) * (l.base_rent_psf || 0)), 0);
+            } else {
+                annualRent = totalSF * (this.assumptions.in_place_rent_psf || 200);
+            }
+            const effectiveRent = annualRent * (1 - vacancy);
+
+            // Calculate expenses
+            const fixedOpex = totalSF * (this.assumptions.fixed_opex_psf || 36);
+            const mgmtFee = effectiveRent * (this.assumptions.management_fee_percent || 0.04);
+            const propTax = this.assumptions.property_tax_amount || 0;
+            const capex = totalSF * (this.assumptions.capex_reserve_psf || 5);
+            const totalOpex = fixedOpex + mgmtFee + propTax + capex;
+
+            // Calculate NOI
+            const annualNOI = effectiveRent - totalOpex;
+            const monthlyNOI = annualNOI / 12;
+
+            // Calculate debt metrics
+            let totalDebt = 0;
+            let interestRate = 0.05;
+            for (const loan of this.loans) {
+                const loanAmt = loan.amount || (loan.ltc_ratio ? totalCost * loan.ltc_ratio : 0);
+                totalDebt += loanAmt;
+                if (loanAmt > 0) interestRate = loan.fixed_rate || 0.05;
+            }
+            const monthlyDebtService = totalDebt * interestRate / 12;
+            const totalEquity = totalCost - totalDebt;
+            const ltc = totalCost > 0 ? totalDebt / totalCost : 0;
+
+            // Calculate DSCR
+            const dscr = monthlyDebtService > 0 ? monthlyNOI / monthlyDebtService : 999;
+
+            // Calculate going-in cap rate
+            const goingInCap = totalCost > 0 ? annualNOI / totalCost : 0;
+
+            // Calculate exit value
+            const exitCap = this.scenario.exit_cap_rate || 0.05;
+            const holdMonths = this.scenario.hold_period_months || 120;
+            const rentGrowth = this.assumptions.revenue_growth || 0.025;
+            const years = holdMonths / 12;
+            const exitNOI = annualNOI * Math.pow(1 + rentGrowth, years);
+            const exitValue = exitCap > 0 ? exitNOI / exitCap : 0;
+            const salesCost = exitValue * (this.scenario.sales_cost_percent || 0.01);
+            const netExitProceeds = exitValue - salesCost;
+
+            // Check issues
+            const issues = [];
+            if (dscr < 1.0 && totalDebt > 0) {
+                issues.push({
+                    severity: 'critical',
+                    title: 'Negative Cash Flow',
+                    description: `DSCR of ${dscr.toFixed(2)}x means debt service exceeds NOI. The property cannot support this debt level.`,
+                    suggestion: `Reduce loan to ~$${Math.round(monthlyNOI / (interestRate/12) * 0.8 / 1000)}K for 1.25x DSCR`
+                });
+            } else if (dscr < 1.25 && totalDebt > 0) {
+                issues.push({
+                    severity: 'warning',
+                    title: 'Low Debt Coverage',
+                    description: `DSCR of ${dscr.toFixed(2)}x is below typical 1.25x lender requirement.`,
+                    suggestion: 'Consider reducing leverage or improving NOI'
+                });
+            }
+
+            if (netExitProceeds < totalDebt && totalDebt > 0) {
+                issues.push({
+                    severity: 'critical',
+                    title: 'Underwater at Exit',
+                    description: `Exit value ($${(netExitProceeds/1000000).toFixed(1)}M) is less than loan payoff ($${(totalDebt/1000000).toFixed(1)}M).`,
+                    suggestion: `Lower exit cap rate or reduce loan amount`
+                });
+            }
+
+            if (goingInCap < 0.03) {
+                issues.push({
+                    severity: 'warning',
+                    title: 'Very Low Cap Rate',
+                    description: `Going-in cap of ${(goingInCap*100).toFixed(2)}% indicates premium pricing.`,
+                    suggestion: 'Ensure exit assumptions support value preservation'
+                });
+            }
+
+            if (goingInCap < exitCap && goingInCap > 0) {
+                issues.push({
+                    severity: 'info',
+                    title: 'Cap Rate Expansion',
+                    description: `Buying at ${(goingInCap*100).toFixed(2)}% cap, selling at ${(exitCap*100).toFixed(1)}% cap implies value decline.`,
+                    suggestion: 'Consider lower exit cap rate or factor in renovation/value-add'
+                });
+            }
+
+            return {
+                annualRent, effectiveRent, totalOpex, annualNOI, monthlyNOI,
+                totalDebt, monthlyDebtService, totalEquity, ltc, dscr,
+                goingInCap, exitCap, exitNOI, exitValue, netExitProceeds,
+                issues, hasIssues: issues.length > 0,
+                hasCriticalIssues: issues.some(i => i.severity === 'critical')
+            };
         },
 
         async init() {
