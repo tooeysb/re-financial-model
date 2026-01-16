@@ -1054,17 +1054,17 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <div class="metric-card rounded-2xl p-5 text-center metric-tooltip tooltip-calculated">
                         <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total Cost</p>
-                        <p class="text-2xl font-bold text-slate-900">$<span x-text="formatNumber(financingSummary.totalCost)">0</span>K</p>
+                        <p class="text-2xl font-bold text-slate-900">$<span x-text="formatDollars(financingSummary.totalCost)">0</span></p>
                         <span class="tooltip-content"><strong>Total Project Cost</strong> = Purchase price + closing costs + any CapEx. This is your total cost basis and denominator for LTC calculations.</span>
                     </div>
                     <div class="metric-card rounded-2xl p-5 text-center metric-tooltip tooltip-calculated">
                         <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total Debt</p>
-                        <p class="text-2xl font-bold text-amber-600">$<span x-text="formatNumber(financingSummary.totalDebt)">0</span>K</p>
+                        <p class="text-2xl font-bold text-amber-600">$<span x-text="formatDollars(financingSummary.totalDebt)">0</span></p>
                         <span class="tooltip-content"><strong>Total Debt</strong> across all loan tranches. Sum of senior, mezzanine, and any other debt. Higher debt = more leverage and higher equity returns (if profitable).</span>
                     </div>
                     <div class="metric-card rounded-2xl p-5 text-center metric-tooltip tooltip-calculated">
                         <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total Equity</p>
-                        <p class="text-2xl font-bold text-emerald-600">$<span x-text="formatNumber(financingSummary.totalEquity)">0</span>K</p>
+                        <p class="text-2xl font-bold text-emerald-600">$<span x-text="formatDollars(financingSummary.totalEquity)">0</span></p>
                         <span class="tooltip-content"><strong>Total Equity</strong> = Total Cost - Total Debt. The cash investment required from LP and GP. This is the denominator for levered return calculations.</span>
                     </div>
                     <div class="metric-card rounded-2xl p-5 text-center metric-tooltip tooltip-calculated">
@@ -1132,15 +1132,12 @@
                                 </div>
                                 <div>
                                     <label class="input-label tooltip-trigger">
-                                        Amount
+                                        Loan Principal
                                         <span class="tooltip-icon"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg></span>
-                                        <span class="tooltip-content"><strong>Loan principal</strong> in thousands. Enter directly or leave blank to auto-calculate from LTC ratio. This is the initial debt balance used for amortization.</span>
+                                        <span class="tooltip-content"><strong>Loan principal amount</strong> in full dollars. Enter directly or leave blank to auto-calculate from LTC ratio.</span>
                                     </label>
-                                    <div class="input-group">
-                                        <span class="input-prefix">$</span>
-                                        <input type="number" x-model.number="loan.amount" class="input-premium w-full has-prefix has-suffix" :placeholder="loan.ltc_ratio ? 'Auto' : ''">
-                                        <span class="input-suffix">000s</span>
-                                    </div>
+                                    <p class="text-lg font-semibold text-slate-900 mb-1" x-text="'$' + formatDollars(loan.amount)"></p>
+                                    <input type="number" x-model.number="loan.amount" class="input-premium w-full" :placeholder="loan.ltc_ratio ? 'Auto' : ''">
                                 </div>
                                 <div>
                                     <label class="input-label tooltip-trigger">
@@ -1237,14 +1234,14 @@
                             <template x-for="cf in annualCashflows" :key="cf.year">
                                 <tr>
                                     <td class="font-bold text-slate-900" x-text="'Year ' + cf.year"></td>
-                                    <td class="text-right text-slate-600" x-text="'$' + formatNumber(cf.effective_revenue) + 'K'"></td>
-                                    <td class="text-right text-red-500" x-text="'($' + formatNumber(cf.total_expenses) + 'K)'"></td>
-                                    <td class="text-right font-semibold text-slate-900" x-text="'$' + formatNumber(cf.noi) + 'K'"></td>
-                                    <td class="text-right text-red-500" x-text="'($' + formatNumber(cf.debt_service) + 'K)'"></td>
+                                    <td class="text-right text-slate-600" x-text="'$' + formatDollars(cf.effective_revenue)"></td>
+                                    <td class="text-right text-red-500" x-text="'($' + formatDollars(cf.total_expenses) + ')'"></td>
+                                    <td class="text-right font-semibold text-slate-900" x-text="'$' + formatDollars(cf.noi)"></td>
+                                    <td class="text-right text-red-500" x-text="'($' + formatDollars(cf.debt_service) + ')'"></td>
                                     <td class="text-right font-semibold" :class="cf.unleveraged_cash_flow >= 0 ? 'text-emerald-600' : 'text-red-600'"
-                                        x-text="'$' + formatNumber(cf.unleveraged_cash_flow) + 'K'"></td>
+                                        x-text="'$' + formatDollars(cf.unleveraged_cash_flow)"></td>
                                     <td class="text-right font-semibold" :class="cf.leveraged_cash_flow >= 0 ? 'text-emerald-600' : 'text-red-600'"
-                                        x-text="'$' + formatNumber(cf.leveraged_cash_flow) + 'K'"></td>
+                                        x-text="'$' + formatDollars(cf.leveraged_cash_flow)"></td>
                                 </tr>
                             </template>
                         </tbody>
@@ -1325,7 +1322,7 @@
                             </div>
                             <div class="flex justify-between items-center py-3">
                                 <span class="text-white/80">Total Profit</span>
-                                <span class="text-3xl font-bold">$<span x-text="formatNumber(metrics.unleveraged_profit)">-</span>K</span>
+                                <span class="text-3xl font-bold">$<span x-text="formatDollars(metrics.unleveraged_profit)">-</span></span>
                             </div>
                         </div>
                     </div>
@@ -1354,7 +1351,7 @@
                             </div>
                             <div class="flex justify-between items-center py-3">
                                 <span class="text-white/80">Total Profit</span>
-                                <span class="text-3xl font-bold">$<span x-text="formatNumber(metrics.leveraged_profit)">-</span>K</span>
+                                <span class="text-3xl font-bold">$<span x-text="formatDollars(metrics.leveraged_profit)">-</span></span>
                             </div>
                         </div>
                     </div>
@@ -1663,6 +1660,7 @@ function modelEditor() {
         formatPercent(value) { return value == null ? '-' : (value * 100).toFixed(2) + '%'; },
         formatMultiple(value) { return value == null ? '-' : value.toFixed(2) + 'x'; },
         formatNumber(value) { return value == null ? '0' : Math.round(value).toLocaleString(); },
+        formatDollars(value) { return value == null ? '0' : Math.round(value).toLocaleString('en-US'); },
     };
 }
 </script>
