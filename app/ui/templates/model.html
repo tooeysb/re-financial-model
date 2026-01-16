@@ -561,8 +561,25 @@
             </div>
         </div>
 
+        <!-- Calculation Error Banner -->
+        <div x-show="metrics._errors && metrics._errors.length > 0" class="mb-4 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                    <p class="font-semibold text-red-800">Calculation Errors</p>
+                    <ul class="mt-1 text-sm text-red-700 list-disc list-inside">
+                        <template x-for="err in (metrics._errors || [])" :key="err">
+                            <li x-text="err"></li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
         <!-- Return Metrics Dashboard -->
-        <div x-show="metrics.unleveraged_irr" class="mb-8">
+        <div x-show="metrics.unleveraged_irr || metrics.leveraged_irr" class="mb-8">
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div class="metric-card rounded-2xl p-5 hero-metric primary metric-tooltip tooltip-calculated">
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Unlev IRR</p>
@@ -593,6 +610,18 @@
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">GP IRR</p>
                     <p class="hero-metric-value" x-text="formatPercent(metrics.gp_irr)">-</p>
                     <span class="tooltip-content"><strong>GP IRR</strong> is the General Partner/sponsor's return. Includes pro-rata equity returns plus promote (carried interest) above the preferred return hurdle. Higher than LP IRR due to performance incentive.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- No Metrics Calculated Message -->
+        <div x-show="!metrics.unleveraged_irr && !metrics.leveraged_irr && !loading && scenario.id" class="mb-8">
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <p class="text-amber-800">No return metrics calculated yet. Click <strong>Calculate</strong> to run the analysis.</p>
                 </div>
             </div>
         </div>

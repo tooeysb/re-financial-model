@@ -2,6 +2,7 @@
 Scenario management API endpoints.
 """
 
+import logging
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List
@@ -11,6 +12,8 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.db.models import Property, Scenario, Lease, Loan
 from app.calculations import irr, cashflow, waterfall
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -328,17 +331,37 @@ def calculate_scenario_returns(scenario: Scenario, db: Session) -> dict:
         primary_io_months = primary_loan.io_months or 120
         primary_amort_years = primary_loan.amortization_years or 30
 
+    # Convert values from full dollars to $000s for the cashflow module
+    # The cashflow module expects purchase_price, closing_costs, loan_amount in $000s
+    # But property_tax_amount is expected in full dollars (module divides by 1000 internally)
+    purchase_price_000s = (scenario.purchase_price or 0) / 1000
+    closing_costs_000s = (scenario.closing_costs or 0) / 1000
+    loan_amount_000s = total_loan_amount / 1000
+    property_tax_full = op_assumptions.get("property_tax_amount", 0)  # Keep in full dollars
+
+    # Log input parameters for debugging
+    logger.info(
+        f"Calculating returns for scenario {scenario.id}: "
+        f"total_sf={total_sf}, in_place_rent={in_place_rent}, "
+        f"purchase_price={purchase_price_000s} ($000s), closing_costs={closing_costs_000s} ($000s), "
+        f"loan_amount={loan_amount_000s} ($000s), property_tax={property_tax_full} (full $), "
+        f"exit_cap={scenario.exit_cap_rate}"
+    )
+
     # Generate dates
     dates = cashflow.generate_monthly_dates(
         scenario.acquisition_date, scenario.hold_period_months or 120
     )
 
     # Generate cash flows
+    # Note: purchase_price, closing_costs, loan_amount in $000s
+    # property_tax_amount in full dollars (module converts internally)
+    # rent/expense PSF values in $/SF (module converts internally)
     monthly_cfs = cashflow.generate_cash_flows(
         acquisition_date=scenario.acquisition_date,
         hold_period_months=scenario.hold_period_months or 120,
-        purchase_price=scenario.purchase_price or 0,
-        closing_costs=scenario.closing_costs or 0,
+        purchase_price=purchase_price_000s,
+        closing_costs=closing_costs_000s,
         total_sf=total_sf,
         in_place_rent_psf=in_place_rent,
         market_rent_psf=op_assumptions.get("market_rent_psf", 300),
@@ -346,12 +369,12 @@ def calculate_scenario_returns(scenario: Scenario, db: Session) -> dict:
         vacancy_rate=op_assumptions.get("vacancy_rate", 0),
         fixed_opex_psf=op_assumptions.get("fixed_opex_psf", 36),
         management_fee_percent=op_assumptions.get("management_fee_percent", 0.04),
-        property_tax_amount=op_assumptions.get("property_tax_amount", 0),
+        property_tax_amount=property_tax_full,
         capex_reserve_psf=op_assumptions.get("capex_reserve_psf", 5),
         expense_growth=op_assumptions.get("expense_growth", 0.025),
         exit_cap_rate=scenario.exit_cap_rate or 0.05,
         sales_cost_percent=scenario.sales_cost_percent or 0.01,
-        loan_amount=total_loan_amount,
+        loan_amount=loan_amount_000s,
         interest_rate=primary_rate,
         io_months=primary_io_months,
         amortization_years=primary_amort_years,
@@ -361,57 +384,100 @@ def calculate_scenario_returns(scenario: Scenario, db: Session) -> dict:
     unleveraged_cf = [cf["unleveraged_cash_flow"] for cf in monthly_cfs]
     leveraged_cf = [cf["leveraged_cash_flow"] for cf in monthly_cfs]
 
+    # Log cash flow summary for debugging
+    logger.info(
+        f"Cash flow summary: unlev_cf[0]={unleveraged_cf[0] if unleveraged_cf else 'N/A'}, "
+        f"unlev_cf[-1]={unleveraged_cf[-1] if unleveraged_cf else 'N/A'}, "
+        f"has_positive={any(cf > 0 for cf in unleveraged_cf)}, "
+        f"has_negative={any(cf < 0 for cf in unleveraged_cf)}"
+    )
+
     metrics = {}
+    errors = []
 
     # Calculate unleveraged metrics
     try:
         metrics["unleveraged_irr"] = irr.calculate_xirr(unleveraged_cf, dates)
         metrics["unleveraged_multiple"] = irr.calculate_multiple(unleveraged_cf)
         metrics["unleveraged_profit"] = irr.calculate_profit(unleveraged_cf)
-    except Exception:
-        pass
+        logger.info(f"Unleveraged metrics: IRR={metrics['unleveraged_irr']:.4f}, Multiple={metrics['unleveraged_multiple']:.2f}")
+    except Exception as e:
+        error_msg = f"Unleveraged IRR calculation failed: {str(e)}"
+        logger.error(error_msg)
+        errors.append(error_msg)
 
     # Calculate leveraged metrics
     if total_loan_amount > 0:
+        logger.info(
+            f"Leveraged CF summary: lev_cf[0]={leveraged_cf[0] if leveraged_cf else 'N/A'}, "
+            f"lev_cf[-1]={leveraged_cf[-1] if leveraged_cf else 'N/A'}"
+        )
         try:
             metrics["leveraged_irr"] = irr.calculate_xirr(leveraged_cf, dates)
             metrics["leveraged_multiple"] = irr.calculate_multiple(leveraged_cf)
             metrics["leveraged_profit"] = irr.calculate_profit(leveraged_cf)
-        except Exception:
-            pass
+            logger.info(f"Leveraged metrics: IRR={metrics['leveraged_irr']:.4f}, Multiple={metrics['leveraged_multiple']:.2f}")
+        except Exception as e:
+            error_msg = f"Leveraged IRR calculation failed: {str(e)}"
+            logger.error(error_msg)
+            errors.append(error_msg)
 
         # Calculate waterfall distributions
         wf_structure = scenario.waterfall_structure or {}
-        total_equity = (scenario.purchase_price or 0) + (
-            scenario.closing_costs or 0
-        ) - total_loan_amount
+        # Total equity in $000s for consistency with cash flows
+        total_equity = purchase_price_000s + closing_costs_000s - loan_amount_000s
+
+        logger.info(f"Waterfall: total_equity={total_equity} ($000s), lp_share={wf_structure.get('lp_share', 0.90)}")
 
         if total_equity > 0:
-            distributions = waterfall.calculate_waterfall_distributions(
-                leveraged_cash_flows=leveraged_cf,
-                dates=dates,
-                total_equity=total_equity,
-                lp_share=wf_structure.get("lp_share", 0.90),
-                gp_share=wf_structure.get("gp_share", 0.10),
-                pref_return=wf_structure.get("pref_return", 0.05),
-                compound_monthly=wf_structure.get("compound_monthly", False),
-            )
-
-            lp_equity = total_equity * wf_structure.get("lp_share", 0.90)
-            gp_equity = total_equity * wf_structure.get("gp_share", 0.10)
-
-            lp_cfs = waterfall.extract_lp_cash_flows(distributions, lp_equity)
-            gp_cfs = waterfall.extract_gp_cash_flows(distributions, gp_equity)
-
             try:
-                metrics["lp_irr"] = irr.calculate_xirr(lp_cfs, dates)
-            except Exception:
-                pass
+                distributions = waterfall.calculate_waterfall_distributions(
+                    leveraged_cash_flows=leveraged_cf,
+                    dates=dates,
+                    total_equity=total_equity,
+                    lp_share=wf_structure.get("lp_share", 0.90),
+                    gp_share=wf_structure.get("gp_share", 0.10),
+                    pref_return=wf_structure.get("pref_return", 0.05),
+                    compound_monthly=wf_structure.get("compound_monthly", False),
+                )
 
-            try:
-                metrics["gp_irr"] = irr.calculate_xirr(gp_cfs, dates)
-            except Exception:
-                pass
+                lp_equity = total_equity * wf_structure.get("lp_share", 0.90)
+                gp_equity = total_equity * wf_structure.get("gp_share", 0.10)
+
+                lp_cfs = waterfall.extract_lp_cash_flows(distributions, lp_equity)
+                gp_cfs = waterfall.extract_gp_cash_flows(distributions, gp_equity)
+
+                logger.info(
+                    f"LP/GP CF: lp_cf[0]={lp_cfs[0] if lp_cfs else 'N/A'}, "
+                    f"lp_cf[-1]={lp_cfs[-1] if lp_cfs else 'N/A'}, "
+                    f"gp_cf[0]={gp_cfs[0] if gp_cfs else 'N/A'}, "
+                    f"gp_cf[-1]={gp_cfs[-1] if gp_cfs else 'N/A'}"
+                )
+
+                try:
+                    metrics["lp_irr"] = irr.calculate_xirr(lp_cfs, dates)
+                    logger.info(f"LP IRR: {metrics['lp_irr']:.4f}")
+                except Exception as e:
+                    error_msg = f"LP IRR calculation failed: {str(e)}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+
+                try:
+                    metrics["gp_irr"] = irr.calculate_xirr(gp_cfs, dates)
+                    logger.info(f"GP IRR: {metrics['gp_irr']:.4f}")
+                except Exception as e:
+                    error_msg = f"GP IRR calculation failed: {str(e)}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+
+            except Exception as e:
+                error_msg = f"Waterfall calculation failed: {str(e)}"
+                logger.error(error_msg)
+                errors.append(error_msg)
+
+    # Include errors in metrics for UI display
+    if errors:
+        metrics["_errors"] = errors
 
     return metrics
 
@@ -708,11 +774,18 @@ async def get_scenario_cashflows(
         io_months = primary_loan.io_months or 120
         amort_years = primary_loan.amortization_years or 30
 
+    # Convert values from full dollars to $000s for the cashflow module
+    # property_tax_amount stays in full dollars (module converts internally)
+    purchase_price_000s = (db_scenario.purchase_price or 0) / 1000
+    closing_costs_000s = (db_scenario.closing_costs or 0) / 1000
+    loan_amount_000s = loan_amount / 1000
+    property_tax_full = op_assumptions.get("property_tax_amount", 0)
+
     monthly_cfs = cashflow.generate_cash_flows(
         acquisition_date=db_scenario.acquisition_date,
         hold_period_months=db_scenario.hold_period_months or 120,
-        purchase_price=db_scenario.purchase_price or 0,
-        closing_costs=db_scenario.closing_costs or 0,
+        purchase_price=purchase_price_000s,
+        closing_costs=closing_costs_000s,
         total_sf=total_sf,
         in_place_rent_psf=in_place_rent,
         market_rent_psf=op_assumptions.get("market_rent_psf", 300),
@@ -720,12 +793,12 @@ async def get_scenario_cashflows(
         vacancy_rate=op_assumptions.get("vacancy_rate", 0),
         fixed_opex_psf=op_assumptions.get("fixed_opex_psf", 36),
         management_fee_percent=op_assumptions.get("management_fee_percent", 0.04),
-        property_tax_amount=op_assumptions.get("property_tax_amount", 0),
+        property_tax_amount=property_tax_full,
         capex_reserve_psf=op_assumptions.get("capex_reserve_psf", 5),
         expense_growth=op_assumptions.get("expense_growth", 0.025),
         exit_cap_rate=db_scenario.exit_cap_rate or 0.05,
         sales_cost_percent=db_scenario.sales_cost_percent or 0.01,
-        loan_amount=loan_amount,
+        loan_amount=loan_amount_000s,
         interest_rate=rate,
         io_months=io_months,
         amortization_years=amort_years,
