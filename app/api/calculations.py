@@ -174,22 +174,26 @@ class IRRResponse(BaseModel):
 @router.post("/irr", response_model=IRRResponse)
 async def calculate_irr_endpoint(inputs: IRRInput):
     """Calculate IRR for given cash flows."""
+    from fastapi import HTTPException
 
-    if inputs.dates:
-        irr_val = irr.calculate_xirr(inputs.cash_flows, inputs.dates)
-    else:
-        irr_val = irr.calculate_irr(inputs.cash_flows)
+    try:
+        if inputs.dates:
+            irr_val = irr.calculate_xirr(inputs.cash_flows, inputs.dates)
+        else:
+            irr_val = irr.calculate_irr(inputs.cash_flows)
 
-    multiple = irr.calculate_multiple(inputs.cash_flows)
-    profit = irr.calculate_profit(inputs.cash_flows)
-    npv = irr.calculate_npv(inputs.cash_flows, 0.10)
+        multiple = irr.calculate_multiple(inputs.cash_flows)
+        profit = irr.calculate_profit(inputs.cash_flows)
+        npv = irr.calculate_npv(inputs.cash_flows, 0.10)
 
-    return IRRResponse(
-        irr=irr_val,
-        multiple=multiple,
-        profit=profit,
-        npv_at_10_percent=npv,
-    )
+        return IRRResponse(
+            irr=irr_val,
+            multiple=multiple,
+            profit=profit,
+            npv_at_10_percent=npv,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 class AmortizationInput(BaseModel):
