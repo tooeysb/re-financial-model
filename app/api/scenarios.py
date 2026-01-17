@@ -139,6 +139,8 @@ class ScenarioUpdate(BaseModel):
     sales_cost_percent: Optional[float] = None
     operating_assumptions: Optional[dict] = None
     waterfall_structure: Optional[dict] = None
+    leases: Optional[List[LeaseInput]] = None
+    loans: Optional[List[LoanInput]] = None
 
 
 # ============= Response Schemas =============
@@ -666,10 +668,79 @@ async def update_scenario(
     if not db_scenario:
         raise HTTPException(status_code=404, detail="Scenario not found")
 
-    # Update fields
+    # Update scalar fields (exclude loans and leases - handled separately)
     update_data = scenario_data.model_dump(exclude_unset=True)
+    loans_data = update_data.pop("loans", None)
+    leases_data = update_data.pop("leases", None)
+
     for field, value in update_data.items():
         setattr(db_scenario, field, value)
+
+    # Update loans if provided
+    if loans_data is not None:
+        # Soft delete existing loans
+        existing_loans = db_scenario.loans.filter_by(is_deleted=False).all()
+        for loan in existing_loans:
+            loan.is_deleted = True
+
+        # Create new loans
+        for loan_data in loans_data:
+            db_loan = Loan(
+                scenario_id=scenario_id,
+                name=loan_data.get("name", "Loan"),
+                loan_type=loan_data.get("loan_type", "acquisition"),
+                amount=loan_data.get("amount"),
+                ltc_ratio=loan_data.get("ltc_ratio"),
+                ltv_ratio=loan_data.get("ltv_ratio"),
+                interest_type=loan_data.get("interest_type", "fixed"),
+                fixed_rate=loan_data.get("fixed_rate", 0.05),
+                floating_spread=loan_data.get("floating_spread"),
+                index_type=loan_data.get("index_type", "SOFR"),
+                rate_floor=loan_data.get("rate_floor"),
+                rate_cap=loan_data.get("rate_cap"),
+                origination_fee_percent=loan_data.get("origination_fee_percent", 0.01),
+                closing_costs_percent=loan_data.get("closing_costs_percent", 0.01),
+                io_months=loan_data.get("io_months", 120),
+                amortization_years=loan_data.get("amortization_years", 30),
+                maturity_months=loan_data.get("maturity_months", 120),
+                start_month=loan_data.get("start_month", 0),
+                min_dscr=loan_data.get("min_dscr", 1.25),
+                debt_yield_test=loan_data.get("debt_yield_test", 0.065),
+            )
+            db.add(db_loan)
+
+    # Update leases if provided
+    if leases_data is not None:
+        # Soft delete existing leases
+        existing_leases = db_scenario.leases.filter_by(is_deleted=False).all()
+        for lease in existing_leases:
+            lease.is_deleted = True
+
+        # Create new leases
+        for lease_data in leases_data:
+            db_lease = Lease(
+                scenario_id=scenario_id,
+                tenant_name=lease_data.get("tenant_name", ""),
+                space_id=lease_data.get("space_id", ""),
+                rsf=lease_data.get("rsf", 0),
+                base_rent_psf=lease_data.get("base_rent_psf", 0),
+                market_rent_psf=lease_data.get("market_rent_psf"),
+                escalation_type=lease_data.get("escalation_type", "percentage"),
+                escalation_value=lease_data.get("escalation_value", 0.025),
+                escalation_frequency=lease_data.get("escalation_frequency", "annual"),
+                lease_start=lease_data.get("lease_start"),
+                lease_end=lease_data.get("lease_end"),
+                free_rent_months=lease_data.get("free_rent_months", 0),
+                ti_allowance_psf=lease_data.get("ti_allowance_psf", 0),
+                ti_buildout_months=lease_data.get("ti_buildout_months", 6),
+                lc_percent_years_1_5=lease_data.get("lc_percent_years_1_5", 0.06),
+                lc_percent_years_6_plus=lease_data.get("lc_percent_years_6_plus", 0.03),
+                reimbursement_type=lease_data.get("reimbursement_type", "NNN"),
+                recovery_percentage=lease_data.get("recovery_percentage", 1.0),
+                is_vacant=lease_data.get("is_vacant", False),
+                options=lease_data.get("options", []),
+            )
+            db.add(db_lease)
 
     db.commit()
 
