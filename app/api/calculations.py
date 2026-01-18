@@ -24,6 +24,26 @@ class TenantInput(BaseModel):
     market_rent_psf: float  # Market rent per SF per year
     lease_end_month: int  # Month number when lease expires (0-indexed)
 
+    # Rollover behavior (Excel H-column equivalent)
+    # True = apply TI/LC/Free Rent at rollover (H=0)
+    # False = no costs, immediate market rent (H=1)
+    apply_rollover_costs: bool = True
+
+    # Free rent period
+    free_rent_months: int = 0
+    free_rent_start_month: int = 0  # 0 = starts at acquisition
+
+    # TI buildout period (no rent during construction after rollover)
+    ti_buildout_months: int = 0
+
+    # Lease commission rates
+    lc_percent_years_1_5: float = 0.06  # 6% for years 1-5
+    lc_percent_years_6_plus: float = 0.03  # 3% for years 6+
+    new_lease_term_years: int = 10  # New lease term at rollover
+
+    # TI allowance for rollover
+    ti_allowance_psf: float = 0.0
+
 
 class WaterfallHurdleInput(BaseModel):
     """Input for a single waterfall hurdle tier."""
@@ -146,6 +166,14 @@ async def calculate_cashflows(inputs: CashFlowInput):
                 in_place_rent_psf=t.in_place_rent_psf,
                 market_rent_psf=t.market_rent_psf,
                 lease_end_month=t.lease_end_month,
+                apply_rollover_costs=t.apply_rollover_costs,
+                free_rent_months=t.free_rent_months,
+                free_rent_start_month=t.free_rent_start_month,
+                ti_buildout_months=t.ti_buildout_months,
+                lc_percent_years_1_5=t.lc_percent_years_1_5,
+                lc_percent_years_6_plus=t.lc_percent_years_6_plus,
+                new_lease_term_years=t.new_lease_term_years,
+                ti_allowance_psf=t.ti_allowance_psf,
             )
             for t in inputs.tenants
         ]
