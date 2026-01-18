@@ -39,7 +39,13 @@ echo ""
 
 # Always run Python directly to avoid conftest.py dependency issues
 cd "$(dirname "$0")/.."
-python tests/test_excel_parity_critical.py
+
+# Use python3 on macOS, python elsewhere
+if command -v python3 &> /dev/null; then
+    python3 tests/test_excel_parity_critical.py
+else
+    python tests/test_excel_parity_critical.py
+fi
 EXIT_CODE=$?
 
 echo ""
