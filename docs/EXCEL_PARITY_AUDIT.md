@@ -348,20 +348,87 @@ Interest = AVERAGE(beginning_balance, beginning_balance + draws) × rate × days
 For I/O periods with no draws, this equals the beginning balance (no change from before).
 For construction loans with draws, this properly averages the balance.
 
+### Fix 8: Month 0 Operating Expenses Zeroed (2026-01-17)
+**File Modified:** `app/calculations/cashflow.py`
+
+Month 0 is the acquisition day with no operating activity. Previously, expenses were calculated
+in Month 0 even though revenue was zeroed out, resulting in negative NOI.
+
+Fix: Zero out all operating expenses (fixed_opex, var_opex, prop_tax, capex) in Month 0.
+
+### Fix 9: Extended Forward NOI Calculation (2026-01-17)
+**File Modified:** `app/calculations/cashflow.py`
+
+The exit value calculation was extrapolating forward NOI instead of calculating actual values.
+Now calculates NOI for months 121-132 explicitly and sums the actual values for the forward
+12-month NOI used in exit valuation.
+
+---
+
+## Current Status (2026-01-17)
+
+### Verified Working ✓
+| Calculation | App Value | Excel Value | Status |
+|-------------|-----------|-------------|--------|
+| Month 1 NOI | $158.98K | $158.97K | ✓ Match |
+| Month 120 NOI | $247.80K | $247.80K | ✓ Match |
+| Month 0 NOI | $0.00K | $0.00K | ✓ Match |
+| Rent Roll | Per-tenant | Per-tenant | ✓ Match |
+| Lease Expiry Logic | Implemented | Implemented | ✓ Match |
+| NNN Reimbursements | Implemented | Implemented | ✓ Match |
+| XIRR Calculation | Newton-Raphson | XIRR | ✓ Match |
+
+### Known Discrepancies
+
+#### 1. Forward NOI / Exit Value (~2% difference)
+- **App Forward NOI:** ~$3,014K
+- **Excel Forward NOI:** $3,079.84K
+- **App Exit Proceeds:** $59,682K
+- **Excel Exit Proceeds:** $60,981K
+
+The remaining ~$65K difference in forward NOI is unexplained. The Excel formula
+`=SUM(OFFSET(Model!K69,0,X13+1,1,12))+...` may include additional components
+beyond the visible formula.
+
+#### 2. Interest Expense (~30% difference)
+- **App Month 1 Interest:** $94.78K (at 5.25%)
+- **Excel Month 1 Interest:** $73.09K
+
+This significant discrepancy suggests different calculation methods or parameters
+in Excel. The PRD shows conflicting interest rate values (5.00% in tables, 5.25%
+in the audit specification). Even at 5.00%, our interest ($90.27K) doesn't match
+Excel's $73.09K.
+
+Possible causes:
+1. Excel may use a different day count convention
+2. Excel may have additional interest rate adjustments
+3. The PRD documentation may have inconsistencies
+
+---
+
+## Current IRR Values vs Targets
+
+| Metric | Current App | Excel Target | Variance |
+|--------|-------------|--------------|----------|
+| Unleveraged IRR | 8.13% | 8.57% | -0.44% |
+| Leveraged IRR | 10.69% | 10.09% | +0.60% |
+| LP IRR | 10.01% | 9.39% | +0.62% |
+| GP IRR | 16.18% | 15.02% | +1.16% |
+
+### Analysis
+- **Unleveraged IRR** is lower than Excel due to ~$1.3M lower exit proceeds
+- **Leveraged IRRs** are higher than Excel despite higher interest expense, suggesting
+  differences in the waterfall distribution or other components
+
 ---
 
 ## Post-Fix Expected Values
 
-After all fixes, the application should produce values very close to Excel benchmarks:
+After all fixes, the application produces values within ~0.5-1% of Excel benchmarks for
+most metrics. The operating period NOIs match Excel exactly (Month 1 and Month 120).
 
-| Metric | Excel Target | Expected After All Fixes |
-|--------|--------------|--------------------------|
-| Unleveraged IRR | 8.57% | ~8.56% |
-| Leveraged IRR | 10.09% | ~10.08% |
-| LP IRR | 9.39% | ~9.38% |
-| GP IRR | 15.02% | ~14.98% |
-
-Remaining minor variance is due to:
-1. Simplified waterfall (vs multi-tier in Excel)
-2. Minor rounding differences in day count calculations
-3. Property tax annual bump timing (stepped vs continuous)
+Remaining variance is due to:
+1. Forward NOI calculation methodology (~2% difference)
+2. Interest expense calculation differences (~30% difference)
+3. Simplified single-tier waterfall (vs multi-tier in Excel)
+4. Minor rounding differences in day count calculations
