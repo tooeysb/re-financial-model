@@ -481,19 +481,27 @@ def generate_cash_flows(
         other_income = parking_income + storage_income
 
         # === EXPENSES (calculate first for NNN reimbursements) ===
-        # Use EXPENSE escalation formula: (1 + rate)^(period/12) per Excel Row 3
-        expense_escalation = calculate_expense_escalation(expense_growth, period)
+        # Month 0 is pure acquisition - no operating expenses
+        # Operating expenses start in Month 1
+        if period == 0:
+            fixed_opex = 0.0
+            var_opex = 0.0
+            prop_tax = 0.0
+            capex = 0.0
+        else:
+            # Use EXPENSE escalation formula: (1 + rate)^(period/12) per Excel Row 3
+            expense_escalation = calculate_expense_escalation(expense_growth, period)
 
-        # Use total RSF from tenants if provided, otherwise use total_sf
-        expense_sf = sum(t.rsf for t in tenants) if tenants else total_sf
-        fixed_opex = (expense_sf * fixed_opex_psf * expense_escalation) / 12 / 1000
+            # Use total RSF from tenants if provided, otherwise use total_sf
+            expense_sf = sum(t.rsf for t in tenants) if tenants else total_sf
+            fixed_opex = (expense_sf * fixed_opex_psf * expense_escalation) / 12 / 1000
 
-        # Variable OpEx (escalates with expenses)
-        var_opex = (expense_sf * variable_opex_psf * expense_escalation) / 12 / 1000
+            # Variable OpEx (escalates with expenses)
+            var_opex = (expense_sf * variable_opex_psf * expense_escalation) / 12 / 1000
 
-        # property_tax_amount is annual in $000s, just divide by 12 for monthly
-        prop_tax = (property_tax_amount * expense_escalation) / 12
-        capex = (expense_sf * capex_reserve_psf * expense_escalation) / 12 / 1000
+            # property_tax_amount is annual in $000s, just divide by 12 for monthly
+            prop_tax = (property_tax_amount * expense_escalation) / 12
+            capex = (expense_sf * capex_reserve_psf * expense_escalation) / 12 / 1000
 
         # Management fee calculated on effective revenue (after reimbursements)
         # For NNN, we need to calculate this iteratively
