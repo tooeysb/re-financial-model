@@ -54,7 +54,7 @@ class LoanInput(BaseModel):
     ltc_ratio: Optional[float] = None
     ltv_ratio: Optional[float] = None
     interest_type: str = "fixed"
-    fixed_rate: float = 0.05
+    fixed_rate: float = 0.0525  # PRD Section 7.1: Interest Rate J15 = 5.25%
     floating_spread: Optional[float] = None
     index_type: str = "SOFR"
     rate_floor: Optional[float] = None
@@ -336,7 +336,7 @@ def calculate_scenario_returns(scenario: Scenario, db: Session) -> dict:
     # Get loan info
     loans = scenario.loans.filter_by(is_deleted=False).all()
     total_loan_amount = 0
-    primary_rate = 0.05
+    primary_rate = 0.0525  # PRD Section 7.1: 5.25%
     primary_io_months = 120
     primary_amort_years = 30
 
@@ -348,7 +348,7 @@ def calculate_scenario_returns(scenario: Scenario, db: Session) -> dict:
             total_cost = scenario.purchase_price + (scenario.closing_costs or 0)
             total_loan_amount = total_cost * primary_loan.ltc_ratio
 
-        primary_rate = primary_loan.fixed_rate or 0.05
+        primary_rate = primary_loan.fixed_rate or 0.0525  # PRD: 5.25%
         primary_io_months = primary_loan.io_months or 120
         primary_amort_years = primary_loan.amortization_years or 30
 
@@ -381,6 +381,20 @@ def calculate_scenario_returns(scenario: Scenario, db: Session) -> dict:
                         in_place_rent_psf=lease.base_rent_psf or 0,
                         market_rent_psf=op_assumptions.get("market_rent_psf", 300),
                         lease_end_month=lease_end_month,
+                        # Rollover behavior (Excel H-column equivalent)
+                        # True = apply TI/LC/Free Rent at rollover (H=0)
+                        # False = no costs, immediate market rent (H=1)
+                        apply_rollover_costs=getattr(lease, 'apply_rollover_costs', True),
+                        # Free rent and TI buildout timing
+                        free_rent_months=lease.free_rent_months or 0,
+                        free_rent_start_month=lease.free_rent_start_month or 0,
+                        ti_buildout_months=lease.ti_buildout_months or 0,
+                        # Lease commission rates
+                        lc_percent_years_1_5=lease.lc_percent_years_1_5 or 0.06,
+                        lc_percent_years_6_plus=lease.lc_percent_years_6_plus or 0.03,
+                        new_lease_term_years=10,  # Default 10-year lease at rollover
+                        # TI allowance
+                        ti_allowance_psf=lease.ti_allowance_psf or 0.0,
                     )
                 )
 
@@ -397,6 +411,22 @@ def calculate_scenario_returns(scenario: Scenario, db: Session) -> dict:
     dates = cashflow.generate_monthly_dates(
         scenario.acquisition_date, scenario.hold_period_months or 120
     )
+
+    # Calculate loan closing costs from loan data
+    loan_origination_fee_000s = 0.0
+    loan_closing_costs_000s = 0.0
+    interest_type = "fixed"
+    floating_spread = 0.0
+
+    if loans:
+        primary_loan = loans[0]
+        # Loan fees as percentage of loan amount
+        orig_fee_pct = primary_loan.origination_fee_percent or 0.01
+        closing_pct = primary_loan.closing_costs_percent or 0.01
+        loan_origination_fee_000s = (total_loan_amount * orig_fee_pct) / 1000
+        loan_closing_costs_000s = (total_loan_amount * closing_pct) / 1000
+        interest_type = primary_loan.interest_type or "fixed"
+        floating_spread = primary_loan.floating_spread or 0.0
 
     # Generate cash flows
     # Note: ALL monetary values in $000s
@@ -423,6 +453,19 @@ def calculate_scenario_returns(scenario: Scenario, db: Session) -> dict:
         io_months=primary_io_months,
         amortization_years=primary_amort_years,
         tenants=tenant_list,
+        # New parameters for Excel feature parity
+        variable_opex_psf=op_assumptions.get("variable_opex_psf", 0.0),
+        parking_stalls=op_assumptions.get("parking_stalls", 0),
+        parking_rate_per_stall=op_assumptions.get("parking_rate_per_stall", 0.0),
+        storage_units=op_assumptions.get("storage_units", 0),
+        storage_rate_per_unit=op_assumptions.get("storage_rate_per_unit", 0.0),
+        loan_origination_fee=loan_origination_fee_000s,
+        loan_closing_costs=loan_closing_costs_000s,
+        interest_type=interest_type,
+        floating_spread=floating_spread,
+        # SOFR rate curve would be passed here if available from DB
+        rate_curve=None,
+        capitalize_interest=op_assumptions.get("capitalize_interest", False),
     )
 
     # Extract cash flow arrays
@@ -767,7 +810,7 @@ async def update_scenario(
                 ltc_ratio=loan_data.get("ltc_ratio"),
                 ltv_ratio=loan_data.get("ltv_ratio"),
                 interest_type=loan_data.get("interest_type", "fixed"),
-                fixed_rate=loan_data.get("fixed_rate", 0.05),
+                fixed_rate=loan_data.get("fixed_rate", 0.0525),
                 floating_spread=loan_data.get("floating_spread"),
                 index_type=loan_data.get("index_type", "SOFR"),
                 rate_floor=loan_data.get("rate_floor"),
@@ -904,9 +947,13 @@ async def get_scenario_cashflows(
         in_place_rent = op_assumptions.get("in_place_rent_psf", 200)
 
     loan_amount = 0
-    rate = 0.05
+    rate = 0.0525  # PRD Section 7.1: 5.25%
     io_months = 120
     amort_years = 30
+    interest_type = "fixed"
+    floating_spread = 0.0
+    loan_origination_fee = 0.0
+    loan_closing_costs = 0.0
 
     if loans:
         primary_loan = loans[0]
@@ -915,16 +962,59 @@ async def get_scenario_cashflows(
         elif primary_loan.ltc_ratio and db_scenario.purchase_price:
             total_cost = db_scenario.purchase_price + (db_scenario.closing_costs or 0)
             loan_amount = total_cost * primary_loan.ltc_ratio
-        rate = primary_loan.fixed_rate or 0.05
+        rate = primary_loan.fixed_rate or 0.0525  # PRD: 5.25%
         io_months = primary_loan.io_months or 120
         amort_years = primary_loan.amortization_years or 30
+        interest_type = primary_loan.interest_type or "fixed"
+        floating_spread = primary_loan.floating_spread or 0.0
+        # Loan fees as percentage of loan amount
+        orig_fee_pct = primary_loan.origination_fee_percent or 0.01
+        closing_pct = primary_loan.closing_costs_percent or 0.01
+        loan_origination_fee = loan_amount * orig_fee_pct
+        loan_closing_costs = loan_amount * closing_pct
+
+    # Build tenant list for tenant-by-tenant calculation
+    tenant_list = None
+    if leases:
+        tenant_list = []
+        for lease in leases:
+            if lease.rsf and lease.rsf > 0 and not lease.is_vacant:
+                # Calculate lease_end_month as months from acquisition date
+                lease_end_month = db_scenario.hold_period_months or 120
+                if lease.lease_end and db_scenario.acquisition_date:
+                    months_diff = (
+                        (lease.lease_end.year - db_scenario.acquisition_date.year) * 12
+                        + (lease.lease_end.month - db_scenario.acquisition_date.month)
+                    )
+                    lease_end_month = max(0, months_diff)
+
+                tenant_list.append(
+                    cashflow.Tenant(
+                        name=lease.tenant_name or "Tenant",
+                        rsf=lease.rsf,
+                        in_place_rent_psf=lease.base_rent_psf or 0,
+                        market_rent_psf=op_assumptions.get("market_rent_psf", 300),
+                        lease_end_month=lease_end_month,
+                        # Rollover behavior (Excel H-column equivalent)
+                        apply_rollover_costs=getattr(lease, 'apply_rollover_costs', True),
+                        free_rent_months=lease.free_rent_months or 0,
+                        free_rent_start_month=lease.free_rent_start_month or 0,
+                        ti_buildout_months=lease.ti_buildout_months or 0,
+                        lc_percent_years_1_5=lease.lc_percent_years_1_5 or 0.06,
+                        lc_percent_years_6_plus=lease.lc_percent_years_6_plus or 0.03,
+                        new_lease_term_years=10,
+                        ti_allowance_psf=lease.ti_allowance_psf or 0.0,
+                    )
+                )
 
     # Convert values from full dollars to $000s for the cashflow module
-    # property_tax_amount stays in full dollars (module converts internally)
+    # ALL monetary values must be in $000s for consistency
     purchase_price_000s = (db_scenario.purchase_price or 0) / 1000
     closing_costs_000s = (db_scenario.closing_costs or 0) / 1000
     loan_amount_000s = loan_amount / 1000
-    property_tax_full = op_assumptions.get("property_tax_amount", 0)
+    property_tax_000s = op_assumptions.get("property_tax_amount", 0) / 1000  # Convert to $000s
+    loan_origination_fee_000s = loan_origination_fee / 1000
+    loan_closing_costs_000s = loan_closing_costs / 1000
 
     monthly_cfs = cashflow.generate_cash_flows(
         acquisition_date=db_scenario.acquisition_date,
@@ -938,7 +1028,7 @@ async def get_scenario_cashflows(
         vacancy_rate=op_assumptions.get("vacancy_rate", 0),
         fixed_opex_psf=op_assumptions.get("fixed_opex_psf", 36),
         management_fee_percent=op_assumptions.get("management_fee_percent", 0.04),
-        property_tax_amount=property_tax_full,
+        property_tax_amount=property_tax_000s,
         capex_reserve_psf=op_assumptions.get("capex_reserve_psf", 5),
         expense_growth=op_assumptions.get("expense_growth", 0.025),
         exit_cap_rate=db_scenario.exit_cap_rate or 0.05,
@@ -947,6 +1037,19 @@ async def get_scenario_cashflows(
         interest_rate=rate,
         io_months=io_months,
         amortization_years=amort_years,
+        tenants=tenant_list,
+        # New parameters for Excel feature parity
+        variable_opex_psf=op_assumptions.get("variable_opex_psf", 0.0),
+        parking_stalls=op_assumptions.get("parking_stalls", 0),
+        parking_rate_per_stall=op_assumptions.get("parking_rate_per_stall", 0.0),
+        storage_units=op_assumptions.get("storage_units", 0),
+        storage_rate_per_unit=op_assumptions.get("storage_rate_per_unit", 0.0),
+        loan_origination_fee=loan_origination_fee_000s,
+        loan_closing_costs=loan_closing_costs_000s,
+        interest_type=interest_type,
+        floating_spread=floating_spread,
+        rate_curve=None,
+        capitalize_interest=op_assumptions.get("capitalize_interest", False),
     )
 
     if period_type == "annual":

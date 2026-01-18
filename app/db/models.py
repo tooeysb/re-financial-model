@@ -220,6 +220,11 @@ class Lease(AuditMixin, Base):
     is_vacant = Column(Boolean, default=False)
     is_month_to_month = Column(Boolean, default=False)
 
+    # Rollover behavior (Excel H-column equivalent)
+    # True = apply TI/LC/Free Rent at lease rollover (H=0 in Excel)
+    # False = no rollover costs, immediate transition to market (H=1 in Excel)
+    apply_rollover_costs = Column(Boolean, default=True)
+
     # Relationships
     scenario = relationship("Scenario", back_populates="leases")
 
