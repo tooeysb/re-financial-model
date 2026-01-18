@@ -604,14 +604,17 @@ def generate_cash_flows(
 
         if period == hold_period_months:
             # Calculate forward 12-month NOI for exit valuation
-            # Excel formula: =SUM(OFFSET(Model!K69,0,X13+1,1,12))
-            # Sums ACTUAL NOI from months (exit_month + 1) through (exit_month + 12)
-            # We now have this data calculated in period_data (extended to month 132)
+            # Excel formula: =SUM(OFFSET(Model!K69,0,X13+1,1,12))+SUM(OFFSET(Model!K66,0,X13+1,1,12))
+            # This sums BOTH:
+            #   - Row 69: Retail Potential NOI (months 121-132)
+            #   - Row 66: CapEx Reserves (added back for valuation purposes)
+            # The buyer will set their own CapEx reserves, so we add them back for exit valuation
             forward_noi = 0.0
             for future_month in range(1, 13):
                 future_period = period + future_month
-                # Use actual calculated NOI from extended period_data
+                # Use actual calculated NOI + CapEx from extended period_data
                 forward_noi += period_data[future_period]["noi"]
+                forward_noi += period_data[future_period]["capex"]  # Add back CapEx per Excel
 
             gross_value = forward_noi / exit_cap_rate if exit_cap_rate > 0 else 0
             sales_costs_amount = gross_value * sales_cost_percent
