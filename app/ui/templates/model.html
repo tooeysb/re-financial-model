@@ -681,7 +681,7 @@
                                     <input type="text"
                                         :value="formatNumber(assumptions.total_sf)"
                                         @focus="$el.value = assumptions.total_sf"
-                                        @blur="assumptions.total_sf = parseFloat($el.value.replace(/,/g, '')) || 0; $el.value = formatNumber(assumptions.total_sf)"
+                                        @blur="assumptions.total_sf = parseFloat($el.value.replace(/,/g, '')) || 0; $el.value = formatNumber(assumptions.total_sf); scheduleCalculation()"
                                         class="input-premium w-full has-suffix">
                                     <span class="input-suffix">SF</span>
                                 </div>
@@ -720,7 +720,7 @@
                                     <span class="tooltip-icon"><svg fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg></span>
                                     <span class="tooltip-content">The <strong>closing date</strong> when ownership transfers. This is "Month 0" in your model - all cash flows and returns are calculated from this starting point.</span>
                                 </label>
-                                <input type="date" x-model="scenario.acquisition_date" class="input-premium w-full">
+                                <input type="date" x-model="scenario.acquisition_date" @blur="scheduleCalculation()" class="input-premium w-full">
                             </div>
                             <div>
                                 <label class="input-label tooltip-trigger">
@@ -733,7 +733,7 @@
                                     <input type="text"
                                         :value="formatDollars(scenario.purchase_price)"
                                         @focus="$el.value = scenario.purchase_price"
-                                        @blur="scenario.purchase_price = parseFloat($el.value.replace(/,/g, '')) || 0; $el.value = formatDollars(scenario.purchase_price)"
+                                        @blur="scenario.purchase_price = parseFloat($el.value.replace(/,/g, '')) || 0; $el.value = formatDollars(scenario.purchase_price); scheduleCalculation()"
                                         class="input-premium w-full has-prefix">
                                 </div>
                             </div>
@@ -748,7 +748,7 @@
                                     <input type="text"
                                         :value="formatDollars(scenario.closing_costs)"
                                         @focus="$el.value = scenario.closing_costs"
-                                        @blur="scenario.closing_costs = parseFloat($el.value.replace(/,/g, '')) || 0; $el.value = formatDollars(scenario.closing_costs)"
+                                        @blur="scenario.closing_costs = parseFloat($el.value.replace(/,/g, '')) || 0; $el.value = formatDollars(scenario.closing_costs); scheduleCalculation()"
                                         class="input-premium w-full has-prefix">
                                 </div>
                             </div>
@@ -759,7 +759,7 @@
                                     <span class="tooltip-content"><strong>Investment timeline</strong> from acquisition to sale. Longer holds capture more rent growth but tie up capital. Typical CRE holds are <em>5-10 years</em> (60-120 months).</span>
                                 </label>
                                 <div class="input-group">
-                                    <input type="number" x-model.number="scenario.hold_period_months" class="input-premium w-full has-suffix">
+                                    <input type="number" x-model.number="scenario.hold_period_months" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                     <span class="input-suffix">months</span>
                                 </div>
                             </div>
@@ -785,7 +785,7 @@
                                 </label>
                                 <div class="input-group">
                                     <span class="input-prefix">$</span>
-                                    <input type="number" x-model.number="assumptions.market_rent_psf" class="input-premium w-full has-prefix has-suffix">
+                                    <input type="number" x-model.number="assumptions.market_rent_psf" @blur="scheduleCalculation()" class="input-premium w-full has-prefix has-suffix">
                                     <span class="input-suffix">/SF/yr</span>
                                 </div>
                             </div>
@@ -796,7 +796,7 @@
                                     <span class="tooltip-content"><strong>Expected unleased space</strong> as a percentage. Deducted from gross rent to get <em>effective gross revenue</em>. Includes turnover downtime. Stabilized retail: <em>3-5%</em>, office: <em>5-10%</em>.</span>
                                 </label>
                                 <div class="input-group">
-                                    <input type="number" x-model.number="assumptions.vacancy_rate" step="0.01" class="input-premium w-full has-suffix">
+                                    <input type="number" x-model.number="assumptions.vacancy_rate" step="0.01" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                     <span class="input-suffix">%</span>
                                 </div>
                             </div>
@@ -807,7 +807,7 @@
                                     <span class="tooltip-content"><strong>Year-over-year rent increase</strong>. Applied annually to grow market rents. Reflects market dynamics and lease escalations. Conservative: <em>2-3%</em>, strong markets: <em>3-4%</em>.</span>
                                 </label>
                                 <div class="input-group">
-                                    <input type="number" x-model.number="assumptions.revenue_growth" step="0.001" class="input-premium w-full has-suffix">
+                                    <input type="number" x-model.number="assumptions.revenue_growth" step="0.001" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                     <span class="input-suffix">%/yr</span>
                                 </div>
                             </div>
@@ -833,7 +833,7 @@
                                 </label>
                                 <div class="input-group">
                                     <span class="input-prefix">$</span>
-                                    <input type="number" x-model.number="assumptions.fixed_opex_psf" class="input-premium w-full has-prefix has-suffix">
+                                    <input type="number" x-model.number="assumptions.fixed_opex_psf" @blur="scheduleCalculation()" class="input-premium w-full has-prefix has-suffix">
                                     <span class="input-suffix">/SF/yr</span>
                                 </div>
                             </div>
@@ -844,7 +844,7 @@
                                     <span class="tooltip-content"><strong>Property management cost</strong> as % of effective gross revenue. Covers leasing, tenant relations, accounting. Typical range: <em>2-4%</em> for commercial, <em>4-6%</em> for multifamily.</span>
                                 </label>
                                 <div class="input-group">
-                                    <input type="number" x-model.number="assumptions.management_fee_percent" step="0.01" class="input-premium w-full has-suffix">
+                                    <input type="number" x-model.number="assumptions.management_fee_percent" step="0.01" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                     <span class="input-suffix">%</span>
                                 </div>
                             </div>
@@ -859,7 +859,7 @@
                                     <input type="text"
                                         :value="formatDollars(assumptions.property_tax_amount)"
                                         @focus="$el.value = assumptions.property_tax_amount"
-                                        @blur="assumptions.property_tax_amount = parseFloat($el.value.replace(/,/g, '')) || 0; $el.value = formatDollars(assumptions.property_tax_amount)"
+                                        @blur="assumptions.property_tax_amount = parseFloat($el.value.replace(/,/g, '')) || 0; $el.value = formatDollars(assumptions.property_tax_amount); scheduleCalculation()"
                                         class="input-premium w-full has-prefix has-suffix">
                                     <span class="input-suffix">/yr</span>
                                 </div>
@@ -872,7 +872,7 @@
                                 </label>
                                 <div class="input-group">
                                     <span class="input-prefix">$</span>
-                                    <input type="number" x-model.number="assumptions.capex_reserve_psf" class="input-premium w-full has-prefix has-suffix">
+                                    <input type="number" x-model.number="assumptions.capex_reserve_psf" @blur="scheduleCalculation()" class="input-premium w-full has-prefix has-suffix">
                                     <span class="input-suffix">/SF/yr</span>
                                 </div>
                             </div>
@@ -883,7 +883,7 @@
                                     <span class="tooltip-content"><strong>Annual expense inflation</strong>. Operating costs typically rise with inflation. Conservative: <em>2-2.5%</em>. If expense growth exceeds rent growth, margins compress over time.</span>
                                 </label>
                                 <div class="input-group">
-                                    <input type="number" x-model.number="assumptions.expense_growth" step="0.001" class="input-premium w-full has-suffix">
+                                    <input type="number" x-model.number="assumptions.expense_growth" step="0.001" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                     <span class="input-suffix">%/yr</span>
                                 </div>
                             </div>
@@ -908,7 +908,7 @@
                                     <span class="tooltip-content"><strong>Assumed cap rate at sale</strong>. Sale price = Forward NOI / Exit Cap. <em>Lower cap = higher value</em>. Typically model 25-50 bps higher than going-in cap (cap rate expansion) to be conservative.</span>
                                 </label>
                                 <div class="input-group">
-                                    <input type="number" x-model.number="scenario.exit_cap_rate" step="0.001" class="input-premium w-full has-suffix">
+                                    <input type="number" x-model.number="scenario.exit_cap_rate" step="0.001" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                     <span class="input-suffix">%</span>
                                 </div>
                             </div>
@@ -919,7 +919,7 @@
                                     <span class="tooltip-content"><strong>Disposition costs</strong> as % of sale price: broker commissions, transfer taxes, legal fees. Typically <em>1.5-2.5%</em>. Deducted from gross sale proceeds to calculate net proceeds.</span>
                                 </label>
                                 <div class="input-group">
-                                    <input type="number" x-model.number="scenario.sales_cost_percent" step="0.001" class="input-premium w-full has-suffix">
+                                    <input type="number" x-model.number="scenario.sales_cost_percent" step="0.001" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                     <span class="input-suffix">%</span>
                                 </div>
                             </div>
@@ -944,7 +944,7 @@
                                     <span class="tooltip-content"><strong>Limited Partner equity contribution</strong> as % of total equity. LPs provide capital but don't manage the asset. Typical structures: <em>90% LP / 10% GP</em>. LP gets priority distributions up to the preferred return.</span>
                                 </label>
                                 <div class="input-group">
-                                    <input type="number" x-model.number="waterfall.lp_share" step="0.01" class="input-premium w-full has-suffix">
+                                    <input type="number" x-model.number="waterfall.lp_share" step="0.01" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                     <span class="input-suffix">%</span>
                                 </div>
                             </div>
@@ -955,7 +955,7 @@
                                     <span class="tooltip-content"><strong>General Partner (sponsor) equity</strong>. The GP manages the asset and typically invests <em>5-10%</em> of equity. GP earns promote/carried interest above the preferred return hurdle.</span>
                                 </label>
                                 <div class="input-group">
-                                    <input type="number" x-model.number="waterfall.gp_share" step="0.01" class="input-premium w-full has-suffix">
+                                    <input type="number" x-model.number="waterfall.gp_share" step="0.01" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                     <span class="input-suffix">%</span>
                                 </div>
                             </div>
@@ -966,7 +966,7 @@
                                     <span class="tooltip-content"><strong>LP priority return hurdle</strong>. LPs receive this return on their capital before GP earns promote. Market standard: <em>8-10%</em> annually. Compounded and accrued until paid.</span>
                                 </label>
                                 <div class="input-group">
-                                    <input type="number" x-model.number="waterfall.pref_return" step="0.001" class="input-premium w-full has-suffix">
+                                    <input type="number" x-model.number="waterfall.pref_return" step="0.001" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                     <span class="input-suffix">%</span>
                                 </div>
                             </div>
@@ -1089,10 +1089,10 @@
                                         <input type="text" x-model="lease.tenant_name" class="input-premium w-40 !py-2 !px-3" placeholder="Tenant name">
                                     </td>
                                     <td class="text-right">
-                                        <input type="number" x-model.number="lease.rsf" class="input-premium w-24 text-right !py-2 !px-3">
+                                        <input type="number" x-model.number="lease.rsf" @blur="scheduleCalculation()" class="input-premium w-24 text-right !py-2 !px-3">
                                     </td>
                                     <td class="text-right">
-                                        <input type="number" x-model.number="lease.base_rent_psf" step="0.01" class="input-premium w-24 text-right !py-2 !px-3">
+                                        <input type="number" x-model.number="lease.base_rent_psf" step="0.01" @blur="scheduleCalculation()" class="input-premium w-24 text-right !py-2 !px-3">
                                     </td>
                                     <td class="text-right font-semibold text-slate-900">
                                         $<span x-text="formatNumber((lease.rsf || 0) * (lease.base_rent_psf || 0))">0</span>
@@ -1225,7 +1225,7 @@
                                         <span class="tooltip-content"><strong>Loan-to-Cost ratio</strong>. Debt as % of total project cost. Auto-calculates loan amount. Senior debt typically <em>60-70%</em> LTC. Higher leverage increases returns but adds risk.</span>
                                     </label>
                                     <div class="input-group">
-                                        <input type="number" x-model.number="loan.ltc_ratio" step="0.01" class="input-premium w-full has-suffix">
+                                        <input type="number" x-model.number="loan.ltc_ratio" step="0.01" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                         <span class="input-suffix">%</span>
                                     </div>
                                 </div>
@@ -1262,7 +1262,7 @@
                                         <span class="tooltip-content"><strong>Annual interest rate</strong> or spread over index. Used to calculate monthly debt service. Current senior rates: <em>5-7%</em>. Mezzanine: <em>10-14%</em>.</span>
                                     </label>
                                     <div class="input-group">
-                                        <input type="number" x-model.number="loan.fixed_rate" step="0.001" class="input-premium w-full has-suffix">
+                                        <input type="number" x-model.number="loan.fixed_rate" step="0.001" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                         <span class="input-suffix">%</span>
                                     </div>
                                 </div>
@@ -1273,7 +1273,7 @@
                                         <span class="tooltip-content"><strong>Interest-only period</strong>. During I/O, pay only interest (no principal reduction). Improves early cash flow but leaves larger balance. Typical: <em>12-36 months</em>.</span>
                                     </label>
                                     <div class="input-group">
-                                        <input type="number" x-model.number="loan.io_months" class="input-premium w-full has-suffix">
+                                        <input type="number" x-model.number="loan.io_months" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                         <span class="input-suffix">mo</span>
                                     </div>
                                 </div>
@@ -1284,7 +1284,7 @@
                                         <span class="tooltip-content"><strong>Amortization schedule</strong>. Determines principal paydown rate after I/O period. Longer amortization = lower payments but slower equity build. Standard: <em>25-30 years</em>.</span>
                                     </label>
                                     <div class="input-group">
-                                        <input type="number" x-model.number="loan.amortization_years" class="input-premium w-full has-suffix">
+                                        <input type="number" x-model.number="loan.amortization_years" @blur="scheduleCalculation()" class="input-premium w-full has-suffix">
                                         <span class="input-suffix">yrs</span>
                                     </div>
                                 </div>
@@ -1754,6 +1754,7 @@ function modelEditor() {
 
         leases: [], loans: [], deletedLeases: [], deletedLoans: [],
         metrics: {}, annualCashflows: [], monthlyCashflows: [],
+        calcTimeout: null,
 
         get rentRollSummary() {
             const totalSF = this.leases.reduce((sum, l) => sum + (l.rsf || 0), 0);
@@ -1952,6 +1953,26 @@ function modelEditor() {
             const totalCost = (this.scenario.purchase_price || 0) + (this.scenario.closing_costs || 0);
             if (this.loans.length > 0) { const loan = this.loans[0]; loanAmount = loan.amount || (loan.ltc_ratio ? totalCost * loan.ltc_ratio : 0); }
 
+            // Build tenants array for tenant-by-tenant calculation
+            const acquisitionDate = new Date(this.scenario.acquisition_date);
+            const tenants = this.leases.filter(l => l.rsf > 0 && !l.is_vacant).map(l => {
+                // Calculate lease_end_month as months from acquisition date
+                let leaseEndMonth = 120; // Default to hold period if no end date
+                if (l.lease_end) {
+                    const leaseEnd = new Date(l.lease_end);
+                    const monthsDiff = (leaseEnd.getFullYear() - acquisitionDate.getFullYear()) * 12
+                        + (leaseEnd.getMonth() - acquisitionDate.getMonth());
+                    leaseEndMonth = Math.max(0, monthsDiff);
+                }
+                return {
+                    name: l.tenant_name || 'Tenant',
+                    rsf: l.rsf || 0,
+                    in_place_rent_psf: l.base_rent_psf || 0,
+                    market_rent_psf: this.assumptions.market_rent_psf || 300,
+                    lease_end_month: leaseEndMonth
+                };
+            });
+
             const response = await fetch('/api/calculate/cashflows', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1965,6 +1986,7 @@ function modelEditor() {
                     exit_cap_rate: this.scenario.exit_cap_rate, sales_cost_percent: this.scenario.sales_cost_percent,
                     loan_amount: loanAmount, interest_rate: this.loans[0]?.fixed_rate || 0.05,
                     io_months: this.loans[0]?.io_months || 120, amortization_years: this.loans[0]?.amortization_years || 30,
+                    tenants: tenants.length > 0 ? tenants : null,
                     lp_share: this.waterfall.lp_share, gp_share: this.waterfall.gp_share, pref_return: this.waterfall.pref_return,
                     compound_monthly: this.waterfall.compound_monthly || false,
                     use_multi_hurdle: this.waterfall.use_multi_hurdle !== false,
@@ -1978,6 +2000,16 @@ function modelEditor() {
             this.metrics = data.metrics;
             this.annualCashflows = data.annual_cashflows || [];
             this.monthlyCashflows = data.monthly_cashflows || [];
+        },
+
+        scheduleCalculation() {
+            // Debounce auto-calculation to avoid excessive API calls
+            if (this.calcTimeout) clearTimeout(this.calcTimeout);
+            this.calcTimeout = setTimeout(() => {
+                this.calculateModelDirect().catch(err => {
+                    console.error('Auto-calculate error:', err);
+                });
+            }, 500);
         },
 
         async saveScenario() {
