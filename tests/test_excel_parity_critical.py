@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 CRITICAL: Excel Parity Tests
 
@@ -12,10 +13,20 @@ If these tests fail:
 3. Fix the issue and re-run tests
 4. Only deploy when all tests pass
 
-Run with: pytest tests/test_excel_parity_critical.py -v
+Run standalone: python tests/test_excel_parity_critical.py
+Run with pytest: pytest tests/test_excel_parity_critical.py -v --ignore=tests/conftest.py
 """
 
-import pytest
+import sys
+import os
+
+# Ensure we can run standalone without pytest/conftest dependencies
+try:
+    import pytest
+    HAS_PYTEST = True
+except ImportError:
+    HAS_PYTEST = False
+
 import requests
 from datetime import date
 from typing import Dict, Any

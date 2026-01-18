@@ -37,20 +37,10 @@ fi
 
 echo ""
 
-# Check if pytest is available
-if ! command -v pytest &> /dev/null; then
-    echo -e "${YELLOW}pytest not found, using Python directly...${NC}"
-
-    # Run the test script directly
-    cd "$(dirname "$0")/.."
-    python tests/test_excel_parity_critical.py
-    EXIT_CODE=$?
-else
-    # Run pytest
-    cd "$(dirname "$0")/.."
-    pytest tests/test_excel_parity_critical.py -v --tb=short
-    EXIT_CODE=$?
-fi
+# Always run Python directly to avoid conftest.py dependency issues
+cd "$(dirname "$0")/.."
+python tests/test_excel_parity_critical.py
+EXIT_CODE=$?
 
 echo ""
 echo "============================================================"
