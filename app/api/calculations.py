@@ -15,6 +15,16 @@ from app.calculations import irr, cashflow, waterfall
 router = APIRouter()
 
 
+class TenantInput(BaseModel):
+    """Input for a single tenant in the rent roll."""
+
+    name: str
+    rsf: float  # Rentable square feet
+    in_place_rent_psf: float  # Current rent per SF per year
+    market_rent_psf: float  # Market rent per SF per year
+    lease_end_month: int  # Month number when lease expires (0-indexed)
+
+
 class WaterfallHurdleInput(BaseModel):
     """Input for a single waterfall hurdle tier."""
 
@@ -44,6 +54,10 @@ class CashFlowInput(BaseModel):
     vacancy_rate: float = 0.0
     collection_loss: float = 0.0
 
+    # Tenant-level rent roll (optional, for per-tenant calculations)
+    # If provided, uses tenant-by-tenant rent with lease expiry logic
+    tenants: Optional[List[TenantInput]] = None
+
     # Expenses
     fixed_opex_psf: float = 36.0
     variable_opex_psf: float = 0.0
@@ -64,6 +78,10 @@ class CashFlowInput(BaseModel):
     interest_rate: float = 0.05
     io_months: int = 120
     amortization_years: int = 30
+
+    # Lease structure
+    nnn_lease: bool = True  # If True, adds expense reimbursements to revenue
+    use_actual_365: bool = True  # If True, uses actual/365 day count for interest
 
     # Waterfall (optional for LP/GP returns)
     lp_share: float = 0.90
@@ -118,6 +136,20 @@ async def calculate_cashflows(inputs: CashFlowInput):
         inputs.acquisition_date, inputs.hold_period_months
     )
 
+    # Convert tenant inputs to Tenant objects if provided
+    tenant_list = None
+    if inputs.tenants:
+        tenant_list = [
+            cashflow.Tenant(
+                name=t.name,
+                rsf=t.rsf,
+                in_place_rent_psf=t.in_place_rent_psf,
+                market_rent_psf=t.market_rent_psf,
+                lease_end_month=t.lease_end_month,
+            )
+            for t in inputs.tenants
+        ]
+
     # Calculate monthly cash flows
     monthly_cfs = cashflow.generate_cash_flows(
         acquisition_date=inputs.acquisition_date,
@@ -140,6 +172,9 @@ async def calculate_cashflows(inputs: CashFlowInput):
         interest_rate=inputs.interest_rate,
         io_months=inputs.io_months,
         amortization_years=inputs.amortization_years,
+        tenants=tenant_list,
+        nnn_lease=inputs.nnn_lease,
+        use_actual_365=inputs.use_actual_365,
     )
 
     # Extract cash flow arrays

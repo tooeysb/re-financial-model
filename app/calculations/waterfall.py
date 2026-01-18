@@ -3,6 +3,11 @@ Waterfall Distribution Calculations
 
 Calculates LP/GP distributions through multi-hurdle promote structures.
 Implements institutional-quality waterfall logic matching Excel pro forma models.
+
+Structure (matching 225 Worth Ave Excel):
+1. Return of Capital - LP and GP get their equity back pro-rata
+2. Preferred Return - 5% annual pref on equity, paid pro-rata
+3. Profit Split - Remaining profits split with GP promote
 """
 
 from typing import List, Dict, Optional
@@ -30,20 +35,6 @@ DEFAULT_HURDLES = [
         gp_split=0.10,  # 10% to GP
         gp_promote=0.0,  # No additional promote at first hurdle
     ),
-    WaterfallHurdle(
-        name="Hurdle II",
-        pref_return=0.05,  # Additional 5% pref
-        lp_split=0.75,  # 75% to LP
-        gp_split=0.0833,  # 8.33% to GP equity
-        gp_promote=0.1667,  # 16.67% promote to GP
-    ),
-    WaterfallHurdle(
-        name="Hurdle III",
-        pref_return=0.05,  # Additional 5% pref
-        lp_split=0.75,  # 75% to LP
-        gp_split=0.0833,  # 8.33% to GP equity
-        gp_promote=0.1667,  # 16.67% promote to GP
-    ),
 ]
 
 # Default final split after all hurdles are satisfied
@@ -66,183 +57,143 @@ def calculate_waterfall_distributions(
     final_split: Optional[Dict] = None,
 ) -> List[Dict]:
     """
-    Calculate waterfall distributions for all periods using multi-hurdle structure.
+    Calculate waterfall distributions matching Excel 225 Worth Ave model.
 
-    Implements a standard institutional waterfall with:
-    1. Return of capital (ROC) to LP and GP based on equity shares
-    2. Preferred return at each hurdle tier
-    3. GP promote at each hurdle tier after pref is satisfied
-    4. Final profit split after all hurdles
+    The waterfall follows this priority:
+    1. Return of Capital (ROC) - Return LP/GP equity pro-rata
+    2. Preferred Return - Pay accrued 5% pref on equity pro-rata
+    3. Profit Split - Split remaining: 75% LP, 8.33% GP equity, 16.67% GP promote
 
     Args:
-        leveraged_cash_flows: Array of leveraged cash flows
+        leveraged_cash_flows: Array of leveraged cash flows (negative = investment, positive = distribution)
         dates: Array of dates
         total_equity: Total equity invested
         lp_share: LP's share of equity (e.g., 0.90 for 90%)
         gp_share: GP's share of equity (e.g., 0.10 for 10%)
-        pref_return: Base annual preferred return rate (used if no hurdles specified)
+        pref_return: Annual preferred return rate (e.g., 0.05 for 5%)
         compound_monthly: Whether to compound preferred return monthly
-        hurdles: List of WaterfallHurdle objects defining the promote structure
-        final_split: Dict with lp_split, gp_split, gp_promote for final tier
+        hurdles: List of WaterfallHurdle objects (not used in simplified model)
+        final_split: Dict with lp_split, gp_split, gp_promote for profit tier
 
     Returns:
         List of distribution records with detailed breakdowns
     """
-    # Use default multi-hurdle structure if not specified
-    if hurdles is None:
-        hurdles = DEFAULT_HURDLES
     if final_split is None:
         final_split = DEFAULT_FINAL_SPLIT
 
     distributions = []
 
+    # Initial equity balances
     lp_equity = total_equity * lp_share
     gp_equity = total_equity * gp_share
 
-    # Track equity balances (for ROC)
-    lp_equity_balance = lp_equity
-    gp_equity_balance = gp_equity
+    # Track remaining equity to return
+    lp_equity_unreturned = lp_equity
+    gp_equity_unreturned = gp_equity
 
-    # Track accrued preferred return at each hurdle
-    # Each hurdle accrues on the ORIGINAL equity balance
-    hurdle_lp_accrued = [0.0 for _ in hurdles]
-    hurdle_gp_accrued = [0.0 for _ in hurdles]
+    # Track accrued preferred return (simple interest on original equity)
+    lp_pref_accrued = 0.0
+    gp_pref_accrued = 0.0
 
-    # Track which hurdles have been fully satisfied
-    hurdle_lp_satisfied = [False for _ in hurdles]
-    hurdle_gp_satisfied = [False for _ in hurdles]
+    # Monthly pref rate
+    monthly_pref_rate = pref_return / 12
 
     for i, cash_flow in enumerate(leveraged_cash_flows):
-        # Accrue preferred return at each hurdle tier
-        for h_idx, hurdle in enumerate(hurdles):
-            monthly_rate = hurdle.pref_return / 12
-
+        # Accrue preferred return on original equity each month
+        if i > 0:  # Don't accrue on month 0 (investment month)
             if compound_monthly:
-                # Compound on balance + accrued
-                hurdle_lp_accrued[h_idx] += (
-                    lp_equity * lp_share + hurdle_lp_accrued[h_idx]
-                ) * monthly_rate
-                hurdle_gp_accrued[h_idx] += (
-                    gp_equity * gp_share + hurdle_gp_accrued[h_idx]
-                ) * monthly_rate
+                # Compound on unpaid pref
+                lp_pref_accrued += (lp_equity + lp_pref_accrued) * monthly_pref_rate
+                gp_pref_accrued += (gp_equity + gp_pref_accrued) * monthly_pref_rate
             else:
                 # Simple interest on original equity
-                hurdle_lp_accrued[h_idx] += lp_equity * monthly_rate
-                hurdle_gp_accrued[h_idx] += gp_equity * monthly_rate
+                lp_pref_accrued += lp_equity * monthly_pref_rate
+                gp_pref_accrued += gp_equity * monthly_pref_rate
 
-        # Initialize distribution amounts for this period
-        lp_equity_paydown = 0.0
-        gp_equity_paydown = 0.0
+        # Initialize distribution components for this period
+        lp_equity_return = 0.0
+        gp_equity_return = 0.0
         lp_pref_paid = 0.0
         gp_pref_paid = 0.0
+        lp_profit_share = 0.0
+        gp_profit_share = 0.0
         gp_promote_paid = 0.0
-        lp_profit = 0.0
-        gp_profit = 0.0
 
         remaining = cash_flow
 
+        # Only distribute positive cash flows
         if remaining > 0:
-            # === STEP 1: Pay accrued preferred return (all hurdles) ===
-            for h_idx, hurdle in enumerate(hurdles):
-                if remaining <= 0:
-                    break
+            # === STEP 1: Return of Capital ===
+            # Pay back LP and GP equity pro-rata until fully returned
+            total_equity_unreturned = lp_equity_unreturned + gp_equity_unreturned
 
-                total_pref_owed = hurdle_lp_accrued[h_idx] + hurdle_gp_accrued[h_idx]
+            if total_equity_unreturned > 0:
+                equity_payment = min(remaining, total_equity_unreturned)
 
-                if total_pref_owed > 0:
-                    pref_payment = min(remaining, total_pref_owed)
-
-                    # Split pref payment proportionally
-                    if total_pref_owed > 0:
-                        lp_pref_share = hurdle_lp_accrued[h_idx] / total_pref_owed
-                    else:
-                        lp_pref_share = lp_share
-
-                    lp_pref_this = pref_payment * lp_pref_share
-                    gp_pref_this = pref_payment * (1 - lp_pref_share)
-
-                    lp_pref_paid += lp_pref_this
-                    gp_pref_paid += gp_pref_this
-
-                    hurdle_lp_accrued[h_idx] -= lp_pref_this
-                    hurdle_gp_accrued[h_idx] -= gp_pref_this
-
-                    remaining -= pref_payment
-
-                    # Check if hurdle is satisfied (no more accrued pref)
-                    if hurdle_lp_accrued[h_idx] <= 0.01:
-                        hurdle_lp_satisfied[h_idx] = True
-                    if hurdle_gp_accrued[h_idx] <= 0.01:
-                        hurdle_gp_satisfied[h_idx] = True
-
-            # === STEP 2: Return of capital ===
-            total_equity_owed = lp_equity_balance + gp_equity_balance
-
-            if remaining > 0 and total_equity_owed > 0:
-                equity_payment = min(remaining, total_equity_owed)
-
-                if total_equity_owed > 0:
-                    lp_equity_share = lp_equity_balance / total_equity_owed
+                # Pro-rata split based on remaining equity
+                if total_equity_unreturned > 0:
+                    lp_equity_pct = lp_equity_unreturned / total_equity_unreturned
                 else:
-                    lp_equity_share = lp_share
+                    lp_equity_pct = lp_share
 
-                lp_equity_paydown = equity_payment * lp_equity_share
-                gp_equity_paydown = equity_payment * (1 - lp_equity_share)
+                lp_equity_return = equity_payment * lp_equity_pct
+                gp_equity_return = equity_payment * (1 - lp_equity_pct)
 
-                lp_equity_balance -= lp_equity_paydown
-                gp_equity_balance -= gp_equity_paydown
+                lp_equity_unreturned -= lp_equity_return
+                gp_equity_unreturned -= gp_equity_return
 
                 remaining -= equity_payment
 
-            # === STEP 3: Profit split with GP promote ===
-            if remaining > 0:
-                # Determine which hurdle tier we're in based on satisfied hurdles
-                active_hurdle_idx = 0
-                for h_idx, hurdle in enumerate(hurdles):
-                    if all(hurdle_lp_satisfied[: h_idx + 1]) and all(
-                        hurdle_gp_satisfied[: h_idx + 1]
-                    ):
-                        active_hurdle_idx = h_idx + 1
+            # === STEP 2: Preferred Return ===
+            # Pay accrued preferred return pro-rata
+            total_pref_owed = lp_pref_accrued + gp_pref_accrued
 
-                # Use final split if all hurdles satisfied, otherwise use hurdle split
-                if active_hurdle_idx >= len(hurdles):
-                    # All hurdles satisfied - use final split
-                    lp_split = final_split["lp_split"]
-                    gp_split = final_split["gp_split"]
-                    promote = final_split["gp_promote"]
+            if remaining > 0 and total_pref_owed > 0:
+                pref_payment = min(remaining, total_pref_owed)
+
+                # Pro-rata split based on accrued pref
+                if total_pref_owed > 0:
+                    lp_pref_pct = lp_pref_accrued / total_pref_owed
                 else:
-                    # Use the active hurdle's split
-                    hurdle = hurdles[active_hurdle_idx]
-                    lp_split = hurdle.lp_split
-                    gp_split = hurdle.gp_split
-                    promote = hurdle.gp_promote
+                    lp_pref_pct = lp_share
 
-                # Calculate profit distributions
-                lp_profit = remaining * lp_split
-                gp_profit = remaining * gp_split
-                gp_promote_paid = remaining * promote
+                lp_pref_paid = pref_payment * lp_pref_pct
+                gp_pref_paid = pref_payment * (1 - lp_pref_pct)
 
-        total_to_lp = lp_equity_paydown + lp_pref_paid + lp_profit
-        total_to_gp = gp_equity_paydown + gp_pref_paid + gp_profit + gp_promote_paid
+                lp_pref_accrued -= lp_pref_paid
+                gp_pref_accrued -= gp_pref_paid
 
-        distributions.append(
-            {
-                "period": i,
-                "date": dates[i].isoformat() if i < len(dates) else None,
-                "cash_flow": round(cash_flow, 2),
-                "lp_equity_paydown": round(lp_equity_paydown, 2),
-                "gp_equity_paydown": round(gp_equity_paydown, 2),
-                "lp_preferred_return": round(lp_pref_paid, 2),
-                "gp_preferred_return": round(gp_pref_paid, 2),
-                "gp_promote": round(gp_promote_paid, 2),
-                "lp_profit": round(lp_profit, 2),
-                "gp_profit": round(gp_profit, 2),
-                "total_to_lp": round(total_to_lp, 2),
-                "total_to_gp": round(total_to_gp, 2),
-                "lp_equity_balance": round(max(0, lp_equity_balance), 2),
-                "gp_equity_balance": round(max(0, gp_equity_balance), 2),
-            }
-        )
+                remaining -= pref_payment
+
+            # === STEP 3: Profit Split with GP Promote ===
+            # After equity and pref returned, split remaining profits
+            if remaining > 0:
+                lp_profit_share = remaining * final_split["lp_split"]
+                gp_profit_share = remaining * final_split["gp_split"]
+                gp_promote_paid = remaining * final_split["gp_promote"]
+
+        # Calculate totals
+        total_to_lp = lp_equity_return + lp_pref_paid + lp_profit_share
+        total_to_gp = gp_equity_return + gp_pref_paid + gp_profit_share + gp_promote_paid
+
+        distributions.append({
+            "period": i,
+            "date": dates[i].isoformat() if i < len(dates) else None,
+            "cash_flow": round(cash_flow, 2),
+            "lp_equity_return": round(lp_equity_return, 2),
+            "gp_equity_return": round(gp_equity_return, 2),
+            "lp_preferred_return": round(lp_pref_paid, 2),
+            "gp_preferred_return": round(gp_pref_paid, 2),
+            "lp_profit_share": round(lp_profit_share, 2),
+            "gp_profit_share": round(gp_profit_share, 2),
+            "gp_promote": round(gp_promote_paid, 2),
+            "total_to_lp": round(total_to_lp, 2),
+            "total_to_gp": round(total_to_gp, 2),
+            "lp_equity_unreturned": round(max(0, lp_equity_unreturned), 2),
+            "gp_equity_unreturned": round(max(0, gp_equity_unreturned), 2),
+            "lp_pref_accrued": round(max(0, lp_pref_accrued), 2),
+            "gp_pref_accrued": round(max(0, gp_pref_accrued), 2),
+        })
 
     return distributions
 
@@ -258,22 +209,7 @@ def calculate_simple_waterfall(
 ) -> List[Dict]:
     """
     Calculate simple single-tier waterfall (legacy compatibility).
-
-    This is a simplified waterfall with a single preferred return hurdle
-    and constant LP/GP split. Use calculate_waterfall_distributions()
-    for full multi-hurdle promote structure.
     """
-    # Create a single hurdle with the provided parameters
-    single_hurdle = [
-        WaterfallHurdle(
-            name="Single Hurdle",
-            pref_return=pref_return,
-            lp_split=lp_share,
-            gp_split=gp_share,
-            gp_promote=0.0,
-        )
-    ]
-
     final_split = {
         "lp_split": lp_share,
         "gp_split": gp_share,
@@ -288,7 +224,6 @@ def calculate_simple_waterfall(
         gp_share=gp_share,
         pref_return=pref_return,
         compound_monthly=compound_monthly,
-        hurdles=single_hurdle,
         final_split=final_split,
     )
 
@@ -327,11 +262,11 @@ def calculate_waterfall_summary(distributions: List[Dict]) -> Dict:
     return {
         "total_to_lp": sum(d["total_to_lp"] for d in distributions),
         "total_to_gp": sum(d["total_to_gp"] for d in distributions),
-        "total_equity_paydown": sum(
-            d["lp_equity_paydown"] + d["gp_equity_paydown"] for d in distributions
-        ),
-        "total_preferred_return": sum(
-            d["lp_preferred_return"] + d["gp_preferred_return"] for d in distributions
-        ),
-        "total_profit": sum(d["lp_profit"] + d["gp_profit"] for d in distributions),
+        "total_lp_equity_return": sum(d["lp_equity_return"] for d in distributions),
+        "total_gp_equity_return": sum(d["gp_equity_return"] for d in distributions),
+        "total_lp_pref": sum(d["lp_preferred_return"] for d in distributions),
+        "total_gp_pref": sum(d["gp_preferred_return"] for d in distributions),
+        "total_lp_profit": sum(d["lp_profit_share"] for d in distributions),
+        "total_gp_profit": sum(d["gp_profit_share"] for d in distributions),
+        "total_gp_promote": sum(d["gp_promote"] for d in distributions),
     }
