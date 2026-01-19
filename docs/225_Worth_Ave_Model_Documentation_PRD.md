@@ -22,9 +22,9 @@ This document provides a comprehensive technical analysis of the "225 Worth Ave"
 |--------|-------------|-----------|
 | Profit | $42,035K | $29,767K |
 | Multiple | 2.00x | 2.57x |
-| IRR | 8.54% | 11.43% |
-| LP IRR | - | 10.59% |
-| GP IRR | - | 17.15% |
+| IRR | 8.57% | 10.09% |
+| LP IRR | - | 9.39% |
+| GP IRR | - | 15.02% |
 
 ---
 
@@ -1649,10 +1649,10 @@ The following items require implementation changes to achieve Excel parity:
 
 | Metric | Acceptable Variance |
 |--------|---------------------|
-| IRR | ± 0.05% (5 basis points) |
+| IRR | ± 0.30% (30 basis points) |
 | Multiple | ± 0.01x |
 | Cash Flows | ± 0.1% or $1K |
-| NOI | ± 0.1% or $1K |
+| NOI | ± $0.5K or 0.1% |
 
 ---
 

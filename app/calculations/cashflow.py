@@ -350,6 +350,40 @@ def calculate_expense_escalation(annual_rate: float, period: int) -> float:
     return (1 + annual_rate) ** (period / 12)
 
 
+def calculate_property_tax_escalation(annual_rate: float, period: int) -> float:
+    """
+    Calculate PROPERTY TAX escalation factor using ANNUAL STEP method.
+
+    Excel Formula (Row 4): =IF(AND(L$10>1,MOD(L$10-1,12)=0),K4*(1+$F4),K4)
+    This bumps up annually at the start of each year (months 13, 25, 37, etc.)
+
+    Unlike continuous escalation, this keeps the same factor throughout the year,
+    then steps up at the start of the next year.
+
+    Examples at 2.5% annual:
+        Month 1:   1.0 (Year 1 - no escalation yet)
+        Month 12:  1.0 (still Year 1)
+        Month 13:  1.025 (Year 2 starts)
+        Month 24:  1.025 (still Year 2)
+        Month 25:  1.050625 (Year 3 starts)
+        Month 120: 1.2488629699 (Year 10)
+
+    Args:
+        annual_rate: Annual escalation rate as decimal (e.g., 0.025 for 2.5%)
+        period: Period number (0-based months)
+
+    Returns:
+        Escalation factor for the given period
+    """
+    if period <= 0:
+        return 1.0
+    # Escalation bumps at start of each year (months 13, 25, 37...)
+    # Year 1 = months 1-12, Year 2 = months 13-24, etc.
+    completed_years = (period - 1) // 12
+    return (1 + annual_rate) ** completed_years
+    return (1 + annual_rate) ** (period / 12)
+
+
 def calculate_escalation_factor(
     annual_rate: float, period: int, frequency: str = "monthly"
 ) -> float:
@@ -419,6 +453,9 @@ def generate_cash_flows(
     rate_curve: Optional[RateCurve] = None,  # SOFR curve for floating rate
     # === NEW: Capitalized Interest ===
     capitalize_interest: bool = False,  # Whether to capitalize unpaid interest
+    # === NEW: Excel Parity Options ===
+    property_tax_escalation_method: str = "continuous",  # "continuous" or "annual_step"
+    include_month0_capex: bool = False,  # Include CapEx reserve in Month 0 (Excel: True)
 ) -> List[Dict]:
     """
     Generate monthly cash flow projections.
@@ -444,6 +481,8 @@ def generate_cash_flows(
         floating_spread: Spread over SOFR for floating rate loans
         rate_curve: RateCurve object with SOFR rates
         capitalize_interest: Whether to add unpaid interest to loan balance
+        property_tax_escalation_method: "continuous" (default) or "annual_step" (Excel Row 4)
+        include_month0_capex: If True, includes CapEx reserve in Month 0 (matches Excel)
     """
     cash_flows = []
 
@@ -481,13 +520,18 @@ def generate_cash_flows(
         other_income = parking_income + storage_income
 
         # === EXPENSES (calculate first for NNN reimbursements) ===
-        # Month 0 is pure acquisition - no operating expenses
+        # Month 0 is pure acquisition - no operating expenses (unless include_month0_capex)
         # Operating expenses start in Month 1
         if period == 0:
             fixed_opex = 0.0
             var_opex = 0.0
             prop_tax = 0.0
-            capex = 0.0
+            # Include CapEx in Month 0 if flag is set (matches Excel behavior)
+            if include_month0_capex:
+                expense_sf = sum(t.rsf for t in tenants) if tenants else total_sf
+                capex = (expense_sf * capex_reserve_psf) / 12 / 1000  # No escalation at M0
+            else:
+                capex = 0.0
         else:
             # Use EXPENSE escalation formula: (1 + rate)^(period/12) per Excel Row 3
             expense_escalation = calculate_expense_escalation(expense_growth, period)
@@ -499,8 +543,14 @@ def generate_cash_flows(
             # Variable OpEx (escalates with expenses)
             var_opex = (expense_sf * variable_opex_psf * expense_escalation) / 12 / 1000
 
-            # property_tax_amount is annual in $000s, just divide by 12 for monthly
-            prop_tax = (property_tax_amount * expense_escalation) / 12
+            # Property tax escalation - support both continuous and annual step methods
+            # Excel Row 4 uses annual step: =IF(AND(L$10>1,MOD(L$10-1,12)=0),K4*(1+$F4),K4)
+            if property_tax_escalation_method == "annual_step":
+                prop_tax_escalation = calculate_property_tax_escalation(expense_growth, period)
+            else:
+                prop_tax_escalation = expense_escalation  # Continuous (default)
+            prop_tax = (property_tax_amount * prop_tax_escalation) / 12
+
             capex = (expense_sf * capex_reserve_psf * expense_escalation) / 12 / 1000
 
         # Management fee calculated on effective revenue (after reimbursements)
