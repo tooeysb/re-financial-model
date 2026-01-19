@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./dev.db"
 
     # App settings
-    app_name: str = "RE Financial Model"
+    app_name: str = "Sand Point Real Estate App"
     debug: bool = False
     log_level: str = "INFO"
     app_env: str = "development"
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # SendGrid Email
     sendgrid_api_key: str = ""
     sendgrid_from_email: str = "noreply@example.com"
-    sendgrid_from_name: str = "RE Financial Model"
+    sendgrid_from_name: str = "Sand Point Real Estate App"
 
     # Frontend URL (for email links)
     frontend_url: str = "http://localhost:8000"

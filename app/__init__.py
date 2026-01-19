@@ -1,5 +1,5 @@
 """
-Real Estate Financial Model Application
+Sand Point Real Estate App
 
 A web-based real estate underwriting and financial modeling tool.
 """

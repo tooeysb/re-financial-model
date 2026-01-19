@@ -1,8 +1,8 @@
 {
-  "name": "re-financial-model",
+  "name": "sand-point-re-app",
   "version": "0.1.0",
   "private": true,
-  "description": "Real estate financial modeling web application",
+  "description": "Sand Point Real Estate App - web-based financial modeling",
   "scripts": {
     "dev": "uvicorn app.main:app --reload",
     "start": "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"

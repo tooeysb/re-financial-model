@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-Real Estate Financial Model - A web-based application replicating institutional-quality Excel pro forma models for commercial real estate underwriting. Based on the 225 Worth Ave, Palm Beach retail property model.
+Sand Point Real Estate App - A web-based application replicating institutional-quality Excel pro forma models for commercial real estate underwriting. Based on the 225 Worth Ave, Palm Beach retail property model.
 
 ## Resources
 
 | Resource | URL/Location |
 |----------|--------------|
-| GitHub Repo | https://github.com/tooeysb/re-financial-model |
+| GitHub Repo | https://github.com/tooeysb/sand-point-re-app |
 | Live App | https://re-fin-model-225worth-3348ecdc48e8.herokuapp.com/ |
 | Heroku App Name | `re-fin-model-225worth` |
 | Supabase Project | https://ubbbzshlasonurybnwra.supabase.co |

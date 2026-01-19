@@ -1,4 +1,4 @@
-# Real Estate Financial Model
+# Sand Point Real Estate App
 
 A modern, web-based real estate financial modeling application that provides institutional-quality underwriting capabilities for commercial real estate investments.
 
@@ -53,8 +53,8 @@ This application replicates and enhances the functionality of traditional Excel-
 
 ```bash
 # Clone the repository
-git clone https://github.com/tooeysb/re-financial-model.git
-cd re-financial-model
+git clone https://github.com/tooeysb/sand-point-re-app.git
+cd sand-point-re-app
 
 # Create virtual environment
 python3 -m venv venv

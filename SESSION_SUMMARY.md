@@ -1,7 +1,7 @@
 # Session Summary - January 16, 2026
 
 ## Overview
-This session focused on UI formatting fixes and implementing LP/GP return calculations for the Real Estate Financial Model application.
+This session focused on UI formatting fixes and implementing LP/GP return calculations for the Sand Point Real Estate App.
 
 ## Live URLs
 - **Production App**: https://model.hth-corp.com
